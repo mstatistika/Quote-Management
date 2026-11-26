@@ -12,15 +12,20 @@ SRC1=(ROOT/'tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx').read_bytes()
 class PortalTests(unittest.TestCase):
  def setUp(self):self.c=TestClient(app)
  def test_status(self):
-  r=self.c.get('/api/status');self.assertEqual(r.status_code,200);self.assertTrue(r.json()['demo_ready']);self.assertEqual(r.json()['t01_master_ready'],T01 is not None)
+  r=self.c.get('/api/status');self.assertEqual(r.status_code,200);self.assertTrue(r.json()['demo_ready']);self.assertIsNone(r.json()['t01_master_ready']);self.assertEqual(r.json()['t01_master_location'],'private_supabase_storage')
  def test_home(self):
   r=self.c.get('/');self.assertEqual(r.status_code,200)
   self.assertIn('<select id="rEmail"',r.text)
   self.assertIn('id="rPassword"',r.text)
   self.assertNotIn('rPinSetup',r.text)
+  self.assertIn('id="rMasterStatus"',r.text)
+  self.assertNotIn('id="rT01"',r.text)
  def test_real_requires_auth(self):
   r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
   r=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
+ def test_master_status_requires_auth(self):
+  r=self.c.get('/api/master-status')
+  self.assertIn(r.status_code,(401,503))
  def test_demo_preview(self):
   p=self.c.get('/api/demo',params={'margin':'15','fx':'18300'});self.assertEqual(p.status_code,200)
   self.assertEqual(len(p.json()['items']),3)
