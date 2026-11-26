@@ -44,7 +44,7 @@
     <p class="error" id="rLoginError" role="alert"></p>
   </div>
   <div id="realWorkspace" class="hidden workspace-content">
-    <div class="row between"><span class="eyebrow">QUOTATION · DRAFT</span><button id="rLogout" class="small-link" type="button">Keluar</button></div>
+    <div class="row between logout-row"><span aria-hidden="true"></span><button id="rLogout" class="small-link" type="button">Keluar</button></div>
     <div class="fields-two price-fields">
       <label>Margin (%)<input id="rMargin" type="number" min=".01" max="80" step=".01" value="15"></label>
       <label>Kurs USD/IDR<input id="rFx" type="number" min="1000" max="1000000" value="18300"></label>
@@ -56,7 +56,7 @@
     <div class="smalltools"><span class="minor">Detail opsional</span><div class="switches">
       <button type="button" class="switch active" data-r-mode="simple">Simple</button><button type="button" class="switch" data-r-mode="advanced">Advanced</button>
     </div></div>
-    <section id="rAdvanced" class="fold advanced-fields"><h3 class="subheading">Customer, proyek &amp; terms</h3><div class="fields-two" id="rAdvancedFields"></div></section>
+    <section id="rAdvanced" class="fold advanced-fields"><div class="fields-two" id="rAdvancedFields"></div></section>
     <button id="rPreview" type="button" class="cta">Preview Hasil Quotation</button>
     <p id="rError" class="hint" role="alert"></p>
     <div id="rResults" hidden>
