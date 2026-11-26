@@ -65,18 +65,34 @@
       <p id="rPricingNote" class="minor" role="status" aria-live="polite" hidden></p>
       <section class="worksheet-preview" aria-label="Preview quotation">
         <div class="row between worksheet-heading">
-          <h3 class="subheading">Preview quotation</h3>
+          <h3 class="subheading">Review quotation · sumber vs draft</h3>
           <div class="switches" role="group" aria-label="Jenis preview">
             <button id="rShowExcel" type="button" class="switch active" aria-pressed="true">Excel</button>
             <button id="rShowPdf" type="button" class="switch" aria-pressed="false">PDF</button>
           </div>
         </div>
-        <section id="rExcelPreview" aria-label="Preview worksheet Excel">
-          <div class="worksheet-bar"><span>QUOTATION · DRAFT</span><span>Pratinjau nilai · baca saja</span></div>
-          <div class="worksheet-scroll" role="region" aria-label="Tabel quotation dapat digulir secara horizontal" tabindex="0">
-            <table id="rSheetTable" class="worksheet-table" aria-label="Pratinjau item dan harga quotation dalam bentuk worksheet"></table>
+        <section id="rExcelPreview" aria-label="Perbandingan file Excel sumber dan draft">
+          <p class="worksheet-intro">Bandingkan file yang di-upload dengan <strong>draft Excel yang benar-benar dihasilkan</strong>. Struktur SKU, QTY, harga unit dan subtotal diperiksa per baris.</p>
+          <div id="rCompareChecks" class="compare-checks" role="status" aria-live="polite"></div>
+          <div class="worksheet-compare">
+            <article class="worksheet-panel">
+              <h4 id="rSourceTitle" class="worksheet-panel-title">A · Quotation yang di-upload</h4>
+              <div class="worksheet-bar"><span>FILE UPLOAD</span><span>Nilai asli</span></div>
+              <div class="worksheet-scroll" role="region" aria-label="Worksheet sumber dapat digulir secara horizontal" tabindex="0">
+                <table id="rSourceTable" class="worksheet-table" aria-label="Isi Excel dari file sumber"></table>
+              </div>
+              <p id="rSourceTotal" class="sheet-total"></p>
+            </article>
+            <article class="worksheet-panel">
+              <h4 id="rDraftTitle" class="worksheet-panel-title">B · Draft hasil generator</h4>
+              <div class="worksheet-bar"><span>OUTPUT DRAFT</span><span>Hasil terverifikasi</span></div>
+              <div class="worksheet-scroll" role="region" aria-label="Worksheet draft dapat digulir secara horizontal" tabindex="0">
+                <table id="rSheetTable" class="worksheet-table" aria-label="Isi Excel dari draft hasil generator"></table>
+              </div>
+              <p id="rDraftTotal" class="sheet-total"></p>
+            </article>
           </div>
-          <p class="worksheet-note">Preview ini berbentuk worksheet untuk pemeriksaan harga. Tata letak dan logo file Excel asli tersedia pada hasil download .xlsx.</p>
+          <p id="rCompareNote" class="worksheet-note"></p>
         </section>
         <section id="rPdfPreview" class="pdf-preview" aria-label="Preview quotation PDF A4" hidden>
           <div class="row between"><h3 class="subheading">Preview PDF · A4</h3><button type="button" id="rRefreshPdf" class="small-link">Refresh</button></div>
