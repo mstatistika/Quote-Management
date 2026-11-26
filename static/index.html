@@ -16,11 +16,11 @@
 </header>
 <main class="qms-main">
 <section id="real" class="card upload-card" aria-label="Upload quotation Excel">
+  <p class="upload-caption" id="uploadFileCaption">Pilih quotation supplier (.xlsx)</p>
   <label id="uploadAction" class="upload-primary upload-control">
     <span>↑ Upload Excel</span>
-    <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX">
+    <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX" aria-describedby="uploadFileCaption">
   </label>
-  <p class="upload-caption">Pilih quotation Smartoptics atau CommVerge (.xlsx)</p>
   <p id="selectedFileInfo" class="file-selection" aria-live="polite" hidden></p>
   <div id="realUnconfigured" class="access-message hidden" role="status">
     <strong>File dipilih, belum diproses.</strong>
@@ -63,11 +63,26 @@
       <div class="totalbox"><span>Total DRAFT <small>sebelum pajak</small></span><strong id="rUsd">—</strong><b id="rIdr">—</b></div>
       <p id="rResultInfo" class="successnote"></p>
       <p id="rPricingNote" class="minor" role="status" aria-live="polite" hidden></p>
-      <section class="fold"><h3 class="subheading">Rincian item</h3><div id="rItems" class="item-list"></div></section>
-      <section id="rPdfPreview" class="pdf-preview" aria-label="Preview quotation PDF A4">
-        <div class="row between"><h3 class="subheading">Preview quotation · A4</h3><button type="button" id="rRefreshPdf" class="small-link">Refresh preview</button></div>
-        <p id="rPreviewMessage" class="minor" role="status" aria-live="polite">Preview PDF akan muncul setelah validasi.</p>
-        <iframe id="rPdfFrame" title="Preview PDF quotation A4" class="pdf-preview-frame" hidden></iframe>
+      <section class="worksheet-preview" aria-label="Preview quotation">
+        <div class="row between worksheet-heading">
+          <h3 class="subheading">Preview quotation</h3>
+          <div class="switches" role="group" aria-label="Jenis preview">
+            <button id="rShowExcel" type="button" class="switch active" aria-pressed="true">Excel</button>
+            <button id="rShowPdf" type="button" class="switch" aria-pressed="false">PDF</button>
+          </div>
+        </div>
+        <section id="rExcelPreview" aria-label="Preview worksheet Excel">
+          <div class="worksheet-bar"><span>QUOTATION · DRAFT</span><span>Pratinjau nilai · baca saja</span></div>
+          <div class="worksheet-scroll" role="region" aria-label="Tabel quotation dapat digulir secara horizontal" tabindex="0">
+            <table id="rSheetTable" class="worksheet-table" aria-label="Pratinjau item dan harga quotation dalam bentuk worksheet"></table>
+          </div>
+          <p class="worksheet-note">Preview ini berbentuk worksheet untuk pemeriksaan harga. Tata letak dan logo file Excel asli tersedia pada hasil download .xlsx.</p>
+        </section>
+        <section id="rPdfPreview" class="pdf-preview" aria-label="Preview quotation PDF A4" hidden>
+          <div class="row between"><h3 class="subheading">Preview PDF · A4</h3><button type="button" id="rRefreshPdf" class="small-link">Refresh</button></div>
+          <p id="rPreviewMessage" class="minor" role="status" aria-live="polite">Preview PDF akan muncul setelah dipilih.</p>
+          <iframe id="rPdfFrame" title="Preview PDF quotation A4" class="pdf-preview-frame" hidden></iframe>
+        </section>
       </section>
       <label class="full">Download sebagai
         <select id="rExportType" aria-label="Pilih tipe file download">
