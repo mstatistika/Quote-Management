@@ -50,21 +50,21 @@
     <div class="smalltools"><span class="minor">Detail opsional</span><div class="switches">
       <button type="button" class="switch active" data-r-mode="simple">Simple</button><button type="button" class="switch" data-r-mode="advanced">Advanced</button>
     </div></div>
-    <details id="rAdvanced" class="fold"><summary>Edit customer, proyek &amp; terms</summary><div class="fields-two" id="rAdvancedFields"></div></details>
+    <section id="rAdvanced" class="fold advanced-fields"><h3 class="subheading">Customer, proyek &amp; terms</h3><div class="fields-two" id="rAdvancedFields"></div></section>
     <button id="rPreview" type="button" class="cta">Lihat Harga &amp; Validasi</button>
     <p id="rError" class="hint" role="alert"></p>
     <div id="rResults" hidden>
       <div class="totalbox"><span>Total DRAFT <small>sebelum pajak</small></span><strong id="rUsd">—</strong><b id="rIdr">—</b></div>
       <p id="rResultInfo" class="successnote"></p>
-      <details class="fold"><summary>Rincian item</summary><div id="rItems" class="item-list"></div></details>
+      <section class="fold"><h3 class="subheading">Rincian item</h3><div id="rItems" class="item-list"></div></section>
       <label class="ack"><input id="rAck" type="checkbox"> Saya sudah memeriksa item, harga dan terms.</label>
       <button id="rGenerate" class="cta" type="button" disabled>↓ Download Quotation DRAFT</button>
     </div>
     <p class="disclaimer">DRAFT memerlukan review sebelum dikirim ke customer. Tidak ada email otomatis.</p>
   </div>
 </section>
-<details class="demo-shell" id="demoPanel">
-  <summary>Coba demo tanpa file</summary>
+<section class="demo-shell" id="demoPanel">
+  <h2 class="demo-heading">Coba demo tanpa file</h2>
   <section id="demo" aria-label="Demo quotation">
      <div class="fields-two price-fields">
   <label>Margin (%)<input id="dMargin" type="number" min=".01" max="80" step=".01" value="15" inputmode="decimal"></label>
@@ -74,11 +74,11 @@
  <label class="full">Format Excel<select id="dFormat"><option value="T01">CommVerge — contoh</option><option value="T02">Smartoptics — contoh</option><option value="BOTH">Keduanya (ZIP)</option></select></label>
  <button id="dDownload" class="cta" type="button">↓ Download Excel Contoh</button><p id="dError" class="hint" role="status" aria-live="polite"></p>
  <div class="smalltools"><button id="dReset" type="button" class="small-link">↺ Reset</button><div class="switches"><button type="button" data-mode="simple" class="switch active">Simple</button><button type="button" data-mode="advanced" class="switch">Advanced</button></div></div>
- <details id="dAdvanced" class="fold"><summary>Detail customer &amp; proyek</summary><div class="fields-two"><label>Customer<input id="dCustomer" maxlength="90" value="DEMO Customer"></label><label>Proyek<input id="dProject" maxlength="90" value="Synthetic Sample"></label></div><p class="minor">Hanya dicantumkan di file contoh.</p></details>
- <details class="fold" id="dDetails"><summary>Lihat 3 item dan pemeriksaan</summary><div id="dItems" class="item-list"></div><div class="qa"><span class="check">✓</span> <span id="dQa">5/5 pemeriksaan lulus</span></div></details>
+ <section id="dAdvanced" class="fold advanced-fields"><h3 class="subheading">Customer dan proyek</h3><div class="fields-two"><label>Customer<input id="dCustomer" maxlength="90" value="DEMO Customer"></label><label>Proyek<input id="dProject" maxlength="90" value="Synthetic Sample"></label></div><p class="minor">Hanya dicantumkan di file contoh.</p></section>
+ <section class="fold" id="dDetails"><h3 class="subheading">3 item dan pemeriksaan</h3><div id="dItems" class="item-list"></div><div class="qa"><span class="check">✓</span> <span id="dQa">5/5 pemeriksaan lulus</span></div></section>
  <div class="hidden" aria-hidden="true"><span id="dGm">15%</span><span id="dRate">Rp18.300</span></div>
   </section>
-</details>
+</section>
 </main>
 <footer>Quote Management System · Collective Revivers · v2.2</footer>
 </div></body></html>
