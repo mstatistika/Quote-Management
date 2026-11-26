@@ -38,9 +38,9 @@ def _logo(z, is_commverge):
         if item.file_size > 180_000:
             continue
         data = z.read(filename)
-        if data[:3] == b"\\xff\\xd8\\xff":
+        if data[:3].hex() == "ffd8ff":
             mime = "image/jpeg"
-        elif data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        elif data.startswith(bytes.fromhex("89504e470d0a1a0a")):
             mime = "image/png"
         else:
             continue
