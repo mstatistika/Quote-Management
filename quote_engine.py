@@ -138,7 +138,7 @@ def prepriced_commverge(z,s,ss,fx):
         or 'commverge' not in (value(s,ss,'D6')+' '+value(s,ss,'J3')).lower()
         or 'Quote to DE' not in z.read('xl/workbook.xml').decode('utf-8')
         or sum(bool(re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)) for n in z.namelist())!=1):
-        raise QuoteError('Gunakan Smartoptics Detailed Quote asli atau quotation CommVerge T01 yang valid.')
+        raise QuoteError('Gunakan quotation Smartoptics atau CommVerge yang valid.')
     items=[];adjustments=0
     for r in SLOTS:
         sku=value(s,ss,f'C{r}').strip()
@@ -232,13 +232,13 @@ def output_t02(q,date,meta):
         # PUBLIC synthetic T02 worksheet layout, never an unrelated customer file.
         # It carries no real customer/pricing data and is clearly marked DRAFT.
         template=Path(__file__).resolve().parent/'tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx'
-        if not template.is_file():raise QuoteError('Layout Smartoptics T02 belum terpasang.')
+        if not template.is_file():raise QuoteError('Layout Smartoptics belum terpasang.')
         z=workbook(template.read_bytes())
     else:
         z=q['original_zip']
     s,ss=sheet_and_shared(z)
     if value(s,ss,'D16').strip().lower()!='part #' or 'Smartoptics' not in value(s,ss,'L5'):
-        raise QuoteError('Template output Smartoptics T02 tidak valid.')
+        raise QuoteError('Template output Smartoptics tidak valid.')
     if from_commverge:
         if len(q['items'])>71:raise QuoteError('Template Smartoptics hanya mendukung 71 baris item.')
         # Remove every synthetic/sample item and price before copying the source.
@@ -284,11 +284,11 @@ def output_t02(q,date,meta):
     return pack(z,s)
 
 def output_t01(q,date,meta,master_bytes):
-    if len(q['items'])>len(SLOTS):raise QuoteError('T01 maksimal 16 item; template perlu diperluas manual.')
+    if len(q['items'])>len(SLOTS):raise QuoteError('Template CommVerge maksimal 16 item; template perlu diperluas manual.')
     z=workbook(master_bytes);s,ss=sheet_and_shared(z)
     if value(s,ss,'C21')!='Product Name' or 'Quote to DE' not in z.read('xl/workbook.xml').decode('utf-8'):
-        raise QuoteError('Master T01 tidak valid.')
-    if len([n for n in z.namelist() if re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)])!=1:raise QuoteError('Master T01 memiliki sheet tambahan yang belum diamankan.')
+        raise QuoteError('Master CommVerge tidak valid.')
+    if len([n for n in z.namelist() if re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)])!=1:raise QuoteError('Master CommVerge memiliki sheet tambahan yang belum diamankan.')
     # Clear old input footprints while leaving sheet layout and three original logo assets intact.
     for r in list(range(22,42))+list(range(44,48))+list(range(49,62)):
         for col in 'BCDEFGHIJL':clear(s,f'{col}{r}')
@@ -334,31 +334,31 @@ def output_t01(q,date,meta,master_bytes):
 def qa_export(raw,q,format_id):
     z=workbook(raw);s,ss=sheet_and_shared(z)
     if format_id=='T02':
-        if decimal(value(s,ss,'M89'))!=q['revenue']:raise QuoteError('T02 subtotal mismatch.')
-        if decimal(value(s,ss,'E90'))!=q['fx']:raise QuoteError('T02 kurs mismatch.')
+        if decimal(value(s,ss,'M89'))!=q['revenue']:raise QuoteError('Subtotal output Smartoptics tidak sesuai.')
+        if decimal(value(s,ss,'E90'))!=q['fx']:raise QuoteError('Kurs output Smartoptics tidak sesuai.')
         converted=q['source_type']=='commverge_prepriced'
         active={18+idx if converted else i['row'] for idx,i in enumerate(q['items'])}
         for idx,i in enumerate(q['items']):
             r=18+idx if converted else i['row']
             if value(s,ss,f'D{r}')!=i['sku'] or value(s,ss,f'E{r}')!=i['description']:
-                raise QuoteError('T02 SKU/deskripsi mismatch.')
+                raise QuoteError('SKU/deskripsi output Smartoptics tidak sesuai.')
             if decimal(value(s,ss,f'L{r}'))!=Decimal(i['qty']):
-                raise QuoteError('T02 QTY mismatch.')
+                raise QuoteError('QTY output Smartoptics tidak sesuai.')
             if decimal(value(s,ss,f'G{r}'))!=i['sell'] or decimal(value(s,ss,f'M{r}'))!=i['total']:
-                raise QuoteError('T02 harga/subtotal mismatch.')
+                raise QuoteError('Harga/subtotal output Smartoptics tidak sesuai.')
             if converted and value(s,ss,f'F{r}'):
-                raise QuoteError('T02 supplier list cost tidak boleh dikarang.')
+                raise QuoteError('Biaya supplier tidak tersedia dan tidak boleh dikarang.')
         for r in range(18,89):
             check_cols=('D','E','F','G','L','M') if converted else ('F','G','M')
             if r not in active and any(value(s,ss,f'{col}{r}') for col in check_cols):
                 raise QuoteError('Data lama tersisa pada baris output T02.')
     else:
-        if decimal(value(s,ss,'H45'))!=q['revenue']:raise QuoteError('T01 subtotal mismatch.')
-        if decimal(value(s,ss,'P19'))!=q['fx']:raise QuoteError('T01 kurs mismatch.')
+        if decimal(value(s,ss,'H45'))!=q['revenue']:raise QuoteError('Subtotal output CommVerge tidak sesuai.')
+        if decimal(value(s,ss,'P19'))!=q['fx']:raise QuoteError('Kurs output CommVerge tidak sesuai.')
         for i,r in zip(q['items'],SLOTS):
             if value(s,ss,f'C{r}')!=i['sku'] or decimal(value(s,ss,f'G{r}'))!=i['sell']:
-                raise QuoteError('T01 SKU/harga mismatch.')
-        if len([n for n in z.namelist() if re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)])!=1:raise QuoteError('T01 old costing sheets masih ada.')
+                raise QuoteError('SKU/harga output CommVerge tidak sesuai.')
+        if len([n for n in z.namelist() if re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)])!=1:raise QuoteError('Sheet biaya lama masih terdapat di output CommVerge.')
         assert all(not value(s,ss,addr) for row in range(22,82) for addr in [f'N{row}',f'AH{row}'])
     for c in s.iter(Mtag('c')):
         if cellval(c,ss) in ERR_VALUES:raise QuoteError('Formula error pada output XLSX.')
@@ -380,9 +380,9 @@ def generate(raw,format_id='T01',margin=15,fx=18300,details='',master_bytes=None
             data=output_t01(q,date,meta,master_bytes)
         else:data=output_t02(q,date,meta)
         qa_export(data,q,code)
-        out.append((f'DANIEL_QUOTE_{code}_{date.isoformat()}_DRAFT.xlsx',data))
+        out.append((f'DANIEL_QUOTE_{"CommVerge" if code=="T01" else "Smartoptics"}_{date.isoformat()}_DRAFT.xlsx',data))
     if len(out)==1:return out[0][0],out[0][1],'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     buf=io.BytesIO()
     with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
         for name,data in out:z.writestr(name,data)
-    return f'DANIEL_QUOTE_BOTH_{date.isoformat()}_DRAFT.zip',buf.getvalue(),'application/zip'
+    return f'DANIEL_QUOTE_Keduanya_{date.isoformat()}_DRAFT.zip',buf.getvalue(),'application/zip'
