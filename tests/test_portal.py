@@ -64,7 +64,19 @@ class PortalTests(unittest.TestCase):
   pdf_name,pdf,mime=generate_pdf(raw,'T01',15,18300)
   self.assertEqual(mime,'application/pdf')
   self.assertTrue(pdf.startswith(b'%PDF-'))
-  with self.assertRaises(QuoteError):generate(raw,'T02',15,18300)
+  # Reverse conversion is valid: original selling prices must be retained.
+  t02_name,t02_bytes,t02_mime=generate(raw,'T02',15,18300)
+  self.assertTrue(t02_name.endswith('.xlsx'))
+  self.assertTrue(zipfile.is_zipfile(io.BytesIO(t02_bytes)))
+  t02sheet,t02strings=sheet_and_shared(zipfile.ZipFile(io.BytesIO(t02_bytes)))
+  self.assertEqual(value(t02sheet,t02strings,'D18'),'SYNTHETIC-SKU')
+  self.assertEqual(float(value(t02sheet,t02strings,'G18')),120.0)
+  self.assertEqual(float(value(t02sheet,t02strings,'M89')),240.0)
+  self.assertEqual(value(t02sheet,t02strings,'F18'),'')
+  self.assertIn('NOT SUPPLIER-ISSUED',value(t02sheet,t02strings,'E12'))
+  othername,otherbytes,othermime=generate(raw,'BOTH',15,18300)
+  with zipfile.ZipFile(io.BytesIO(otherbytes)) as both:
+   self.assertEqual(len(both.namelist()),2)
  def test_prepriced_authenticated_api_bypasses_storage(self):
   raw=synthetic_commverge_priced()
   fake={'SUPABASE_URL':'https://test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
@@ -75,12 +87,12 @@ class PortalTests(unittest.TestCase):
     p=self.c.post('/api/preview',files=files,data={'margin':'15','fx':'18300'})
     self.assertEqual(p.status_code,200,p.text[:200])
     self.assertEqual(p.json()['source_type'],'commverge_prepriced')
-    # A previously selected T02 must not block a valid, already-priced T01.
+    # Format T02 is an independent, deliberately selected output.
     alternate=self.c.post('/api/preview',files=files,data={'format':'T02','margin':'15','fx':'18300'})
     self.assertEqual(alternate.status_code,200,alternate.text[:250])
-    self.assertTrue(alternate.json()['format_auto_selected'])
-    self.assertEqual(alternate.json()['format_resolved'],'T01')
-    self.assertEqual(alternate.json()['comparison']['format_viewed'],'T01')
+    self.assertFalse(alternate.json()['format_auto_selected'])
+    self.assertEqual(alternate.json()['format_resolved'],'T02')
+    self.assertEqual(alternate.json()['comparison']['format_viewed'],'T02')
     self.assertEqual(alternate.json()['comparison']['summary']['unexpected_differences'],0)
     p2=self.c.post('/api/pdf-preview',files=files,data={'format':'T01','margin':'15','fx':'18300'})
     self.assertEqual(p2.status_code,200,p2.text[:200])
@@ -89,6 +101,28 @@ class PortalTests(unittest.TestCase):
     self.assertEqual(p3.status_code,200,p3.text[:200])
     self.assertTrue(zipfile.is_zipfile(io.BytesIO(p3.content)))
   finally:app.dependency_overrides.clear()
+ def test_smartoptics_source_to_commverge_t01_synthetic_master(self):
+  # Synthetic brand-shape fixture: original supplier costs receive margin once.
+  master=synthetic_commverge_priced()
+  name,data,mime=generate(SRC1,'T01',15,18300,'{}',master)
+  self.assertTrue(name.endswith('.xlsx'))
+  c=compare_workbooks(SRC1,'T01',15,18300,'{}',master)
+  self.assertEqual(c['summary']['sku_matches'],3)
+  self.assertEqual(c['summary']['qty_matches'],3)
+  self.assertEqual(c['summary']['unexpected_differences'],0)
+  self.assertEqual(c['summary']['margin_adjustments'],3)
+ def test_commverge_source_to_smartoptics_t02_comparison(self):
+  raw=synthetic_commverge_priced()
+  c=compare_workbooks(raw,'T02',15,18300)
+  self.assertEqual(c['source_type'],'commverge_prepriced')
+  self.assertEqual(c['format_viewed'],'T02')
+  self.assertEqual(c['summary']['sku_matches'],1)
+  self.assertEqual(c['summary']['qty_matches'],1)
+  self.assertEqual(c['summary']['subtotals_repaired'],1)
+  self.assertEqual(c['summary']['unexpected_differences'],0)
+  self.assertEqual(float(c['draft_total']),240.0)
+  c20=compare_workbooks(raw,'T02',20,18300)
+  self.assertEqual(c['draft_total'],c20['draft_total'])
  def test_compare_original_smartoptics_vs_draft_t02(self):
   c=compare_workbooks(SRC1,'T02',15,18300)
   summary=c['summary']
