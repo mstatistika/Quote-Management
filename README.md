@@ -22,7 +22,8 @@ The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Aut
 - **REAL (requires configured Auth)**: Supabase Auth verified server-side, with explicit `ALLOWED_EMAILS` allowlist. Needs a **separate Supabase project**; no secrets in this repository.
 - **Original supplier XLSX**: authenticated upload, parsed in-memory, checked against Smartoptics Detailed Quote anchors, pricing gross margin (not markup), anti-double-margin, QA, download DRAFT only.
 - **T02 output**: preserves supplier's Smartoptics original workbook; marked DRAFT not supplier-issued.
-- **T01 output**: requires original approved CommVerge template, provided via **private upload at generation time**. The original branded master is **not included in this public repository**. Uploads are processed in-memory and not persisted.
+- **T01 output**: reads a reusable approved CommVerge master from Supabase **private Storage** bucket `qms-templates`, object `T01_MASTER_CLEAN.xlsx`, using the verified user's JWT. The master is never placed in the public repository. Only the two approved users can read that exact object; uploads/changes require administrator access through Supabase Dashboard.
+- **T01 onboarding (one time)**: Admin opens Supabase Storage for project `endttqjueyeyropzdosy`, selects private bucket `qms-templates`, uploads the vetted master as `T01_MASTER_CLEAN.xlsx`. The master was recovered and verified from the earlier private portal package; don't upload a completed customer quotation instead. Once present, the user sees `Master CommVerge T01 sudah tersedia` after login and does not need to upload a second file.
 - **Advanced**: editable customer and terms metadata only; SKU, descriptions, quantity, publisher identity locked.
 
 No customer-ready quotation should be sent before commercial QA. No automated outbound messages.
