@@ -105,7 +105,7 @@ def _document_snapshot(raw, code, rows, original=False):
     subtotal_addr = "H45" if t01 else "M89"
     original_total = get(subtotal_addr)
     return {
-        "template": code,
+        "template": "CommVerge" if code == "T01" else "Smartoptics",
         "meta": meta,
         "logo": _logo(zipped, t01),
         "item_count": count,
