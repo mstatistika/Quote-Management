@@ -127,9 +127,9 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
     viewed_format = "T01" if target_format == "BOTH" else target_format
     if target_format == "BOTH":
         with zipfile.ZipFile(io.BytesIO(output)) as archive:
-            filename = next((n for n in archive.namelist() if "_T01_" in n and n.endswith(".xlsx")), None)
+            filename = next((n for n in archive.namelist() if "_CommVerge_" in n and n.endswith(".xlsx")), None)
             if filename is None:
-                raise QuoteError("Draft T01 tidak ditemukan dalam paket export.")
+                raise QuoteError("Draft CommVerge tidak ditemukan dalam paket ekspor.")
             output = archive.read(filename)
     original_sheet, original_strings = _sheet_data(raw)
     draft_sheet, draft_strings = _sheet_data(output)
@@ -192,15 +192,11 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
 
     source_total_address = "H45" if prepriced else "M89"
     draft_total_address = "H45" if viewed_format == "T01" else "M89"
-    source_code = "T01" if prepriced else "T02"
-    source_doc = _document_snapshot(raw, source_code, src_rows, original=True)
     draft_doc = _document_snapshot(output, viewed_format, target_rows)
     return {
-        "source_document": source_doc,
         "draft_document": draft_doc,
         "source_type": q["source_type"],
-        "source_label": "COMMVERGE T01 · FILE DIUPLOAD" if prepriced else "SMARTOPTICS · FILE SUPPLIER DIUPLOAD",
-        "draft_label": f"{'COMMVERGE' if viewed_format == 'T01' else 'SMARTOPTICS'} {viewed_format} · DRAFT GENERATOR",
+        "draft_label": "CommVerge" if viewed_format == "T01" else "Smartoptics",
         "format_viewed": viewed_format,
         "format_requested": target_format,
         "source_columns": source_columns,
@@ -229,7 +225,7 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
             "Harga pada file sumber adalah harga supplier; draft menampilkan harga jual setelah gross margin. "
             "SKU, deskripsi dan QTY harus tetap sama."
         ) + (
-            " Preview menunjukkan draft T01; paket download mencakup T01 dan T02."
+            " Preview menampilkan hasil CommVerge; download Keduanya mencakup CommVerge dan Smartoptics."
             if target_format == "BOTH" else ""
         ),
     }
