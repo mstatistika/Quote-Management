@@ -67,3 +67,36 @@ footer{color:#766D64;padding:22px 0}
  .tagline{font-size:10px}
  .cr-logo{width:34px;height:34px}
 }
+
+/* QMS header correction: aligned to working form, no oversized navy banner */
+.top{
+  margin:0;
+  padding:11px 0 12px;
+  min-height:0;
+  background:transparent;
+  border:0;
+  border-bottom:1px solid var(--ms-khaki);
+  border-radius:0;
+  box-shadow:none;
+  gap:12px;
+}
+.brand{color:var(--ms-navy);font-size:19px;line-height:1.18;letter-spacing:-.35px}
+.tagline{color:#665E56;margin:4px 0 0;font-size:11px;line-height:1.35}
+.top-right{gap:9px}
+.cr-logo{width:38px;height:38px;border-radius:50%}
+.demo-pill{font-size:9px;padding:6px 8px;background:var(--ms-light-khaki);color:var(--ms-navy)}
+.tabs{margin:11px 0 12px}
+@media(max-width:440px){
+ .top{margin:0;padding:10px 0 11px;gap:8px;min-height:0}
+ .brand{font-size:16.5px;letter-spacing:-.3px}
+ .tagline{font-size:10px;line-height:1.35;margin:4px 0 0}
+ .cr-logo{width:34px;height:34px}
+ .top-right{gap:6px}
+ .demo-pill{padding:5px 6px;font-size:9px}
+ .tabs{margin:10px 0 12px}
+}
+@media(max-width:350px){
+ .brand{font-size:15px}
+ .tagline{font-size:9px}
+ .cr-logo{width:31px;height:31px}
+}
