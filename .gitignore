@@ -1,0 +1,23 @@
+.env
+.env.local
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+.vercel/
+.DS_Store
+*.log
+# Never store customer/vendor XLSX source files in repo
+supplier_inputs/
+customer_outputs/
+
+# Proprietary issuer workbook: NEVER commit to public source
+private/T01_MASTER_CLEAN.xlsx
+# Real supplier/customer workbooks
+*MVNET*.xlsx
+*Mvnet*.xlsx
+
+# All workbooks are ignored unless deliberately vetted synthetic demo fixtures
+*.xlsx
+!private/DEMO_MASTER.xlsx
+!tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx
