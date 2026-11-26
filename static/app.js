@@ -8,7 +8,6 @@ let access={configured:false,url:'',publishable_key:''};
 let token=null,realPreview=null,realMode='simple';
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
-$('uploadAction').addEventListener('click',()=> $('rFile').click());
 const demoPanel=$('demoPanel');
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
 demoPanel.addEventListener('toggle',syncDemoBadge);
