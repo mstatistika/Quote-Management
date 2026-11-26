@@ -216,7 +216,7 @@ function renderDocumentPreview(nodeId,doc){
     ['Project',doc.meta.project]
   ].forEach(([label,v])=>metadata.append(metaField(label,v)));
   paper.append(metadata);
-  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan hasil '+(doc.template==='T01'?'CommVerge':'Smartoptics'));
+  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan hasil '+doc.template);
   paper.append(caption,snapshotTable(doc.items||[],doc));
   const totals=docNode('div','quote-paper-totals');
   totals.append(docNode('span','',doc.original?'TOTAL PADA FILE ASLI':'TOTAL HASIL GENERATOR'));
