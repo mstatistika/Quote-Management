@@ -79,23 +79,58 @@ $('rLoginBtn').onclick=async()=>{
 };
 $('rChangePinBtn').onclick=async()=>{
   const btn=$('rChangePinBtn');btn.disabled=true;$('rPinChangeError').textContent='';
+  let passwordChanged=false;
   try{
-    if(!token||!pinRotationRequired)throw Error('Silakan masuk kembali.');
+    if(!token||!pinRotationRequired)throw Error('Sesi kedaluwarsa. Silakan masuk kembali.');
     const next=$('rNewPin').value.trim();
-    if(!validPin(next)||weakPin(next))throw Error('Buat PIN 6 digit yang tidak berurutan atau berulang.');
-    if(next!==$('rConfirmPin').value.trim())throw Error('Konfirmasi PIN tidak sama.');
+    const confirmation=$('rConfirmPin').value.trim();
+    if(!validPin(next))throw Error('PIN baru wajib berisi tepat 6 angka.');
+    if(weakPin(next))throw Error('PIN terlalu mudah ditebak. Hindari angka berurutan atau semuanya sama (misalnya 123456 atau 111111).');
+    if(next!==confirmation)throw Error('Kedua PIN berbeda. Periksa kembali kolom konfirmasi.');
+    btn.textContent='Menyimpan PIN…';
     const r=await fetch(access.url+'/auth/v1/user',{
       method:'PUT',headers:{apikey:access.publishable_key,Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({password:next}),cache:'no-store'
     });
-    if(!r.ok){const response=await r.json().catch(()=>({}));throw Error(response.msg||response.message||'Gagal mengubah PIN.');}
-    token=null;pinRotationRequired=false;
+    if(!r.ok){
+      const response=await r.json().catch(()=>({}));
+      throw Error(response.msg||response.message||response.error_description||'Gagal menyimpan PIN. Periksa kebijakan password Supabase.');
+    }
+    passwordChanged=true;
+    // Refresh the session using the NEW PIN; never keep relying on a possibly revoked old session.
+    const signin=await fetch(access.url+'/auth/v1/token?grant_type=password',{
+      method:'POST',headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
+      body:JSON.stringify({email:$('rEmail').value.trim().toLowerCase(),password:next}),cache:'no-store'
+    });
+    const session=await signin.json().catch(()=>({}));
+    if(!signin.ok||!session.access_token)throw Error('PIN sudah tersimpan, tetapi sesi baru belum aktif.');
+    token=session.access_token;
+    const check=await fetch('/api/whoami',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    if(!check.ok)throw Error('PIN sudah tersimpan, tetapi izin sesi perlu diverifikasi ulang.');
+    pinRotationRequired=false;
     $('rNewPin').value='';$('rConfirmPin').value='';
     $('rPinSetup').classList.add('hidden');
-    syncDemoBadge();onFileSelected();
-    $('rLoginError').textContent='PIN diperbarui. Silakan masuk kembali memakai PIN baru.';
-  }catch(e){$('rPinChangeError').textContent=e.message;}
-  finally{btn.disabled=false;}
+    $('realWorkspace').classList.remove('hidden');
+    $('rError').textContent='PIN baru tersimpan. Login berhasil. Lanjutkan pengaturan quotation.';
+    syncDemoBadge();
+    $('realWorkspace').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    if(passwordChanged){
+      token=null;pinRotationRequired=false;
+      $('rNewPin').value='';$('rConfirmPin').value='';
+      $('rPinSetup').classList.add('hidden');
+      $('realWorkspace').classList.add('hidden');
+      $('realLogin').classList.remove('hidden');
+      $('rPin').value='';
+      syncDemoBadge();
+      $('rLoginError').textContent='PIN baru berhasil disimpan. Silakan masuk menggunakan PIN baru.';
+      $('realLogin').scrollIntoView({behavior:'smooth',block:'start'});
+    }else{
+      $('rPinChangeError').textContent=e.message;
+    }
+  }finally{
+    btn.disabled=false;btn.textContent='Simpan PIN baru';
+  }
 };
 $('rLogout').onclick=()=>{
   token=null;pinRotationRequired=false;
