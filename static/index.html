@@ -50,10 +50,10 @@
       <label>Kurs USD/IDR<input id="rFx" type="number" min="1000" max="1000000" value="18300"></label>
     </div>
     <label class="full">Format hasil quotation<select id="rFormat">
-      <option value="T01">CommVerge (T01)</option><option value="T02">Smartoptics (T02)</option><option value="BOTH">Keduanya (ZIP)</option>
+      <option value="T01">CommVerge</option><option value="T02">Smartoptics</option><option value="BOTH">Keduanya</option>
     </select></label>
     <p class="minor" id="rFormatHint">Format upload boleh Smartoptics atau CommVerge. Pilih format hasil secara bebas; harga jual yang sudah ada tidak diberi margin lagi.</p>
-    <p id="rMasterStatus" class="minor" role="status" aria-live="polite">Master T01 CommVerge: memeriksa template privat…</p>
+    <p id="rMasterStatus" class="minor" role="status" aria-live="polite">Master CommVerge: memeriksa template privat…</p>
     <div class="smalltools"><span class="minor">Detail opsional</span><div class="switches">
       <button type="button" class="switch active" data-r-mode="simple">Simple</button><button type="button" class="switch" data-r-mode="advanced">Advanced</button>
     </div></div>
@@ -66,21 +66,17 @@
       <p id="rPricingNote" class="minor" role="status" aria-live="polite" hidden></p>
       <section class="worksheet-preview" aria-label="Preview quotation">
         <div class="row between worksheet-heading">
-          <h3 class="subheading">Preview visual · file upload dan draft</h3>
+          <h3 class="subheading">Preview hasil quotation</h3>
           <div class="switches" role="group" aria-label="Jenis preview">
             <button id="rShowExcel" type="button" class="switch active" aria-pressed="true">Excel</button>
             <button id="rShowPdf" type="button" class="switch" aria-pressed="false">PDF</button>
           </div>
         </div>
         <section id="rExcelPreview" aria-label="Cuplikan visual quotation sumber dan draft">
-          <p class="visual-intro">Lihat bentuk quotation dari file Excel yang kamu upload <strong>di atas</strong> dan draft hasil generator <strong>di bawah</strong>. Cuplikan menampilkan header, logo yang tersedia, item awal/akhir, total dan terms.</p>
+          <p class="visual-intro">Cuplikan quotation <strong>hasil generator</strong>: logo, header, beberapa item, total, dan terms. Seluruh item tetap diperiksa melalui validasi di bawah.</p>
           <div class="visual-doc-stack">
-            <article class="visual-document-card" aria-label="Quotation Excel file upload">
-              <div class="visual-doc-label"><span class="visual-doc-number">A</span><h4 id="rSourceTitle">File quotation yang di-upload</h4><span class="visual-doc-kind">ASLI</span></div>
-              <div id="rSourceDocument" class="quote-paper" aria-label="Cuplikan dokumen Excel asli"></div>
-            </article>
             <article class="visual-document-card" aria-label="Quotation Excel draft generator">
-              <div class="visual-doc-label"><span class="visual-doc-number">B</span><h4 id="rDraftTitle">Draft dari Quote Generator</h4><span class="visual-doc-kind">DRAFT</span></div>
+              <div class="visual-doc-label"><h4 id="rDraftTitle">Hasil Quote Generator</h4><span class="visual-doc-kind">DRAFT</span></div>
               <div id="rDraftDocument" class="quote-paper" aria-label="Cuplikan dokumen draft Excel"></div>
             </article>
           </div>
@@ -116,7 +112,7 @@
   <label>Kurs USD/IDR<input id="dFx" type="number" min="1000" max="1000000" step="1" value="18300" inputmode="numeric"></label>
  </div>
  <div class="totalbox"><span>Total penawaran <small>sebelum pajak</small></span><strong id="dUsd">USD 0.00</strong><b id="dIdr">Rp0</b></div>
- <label class="full">Format Excel<select id="dFormat"><option value="T01">CommVerge — contoh</option><option value="T02">Smartoptics — contoh</option><option value="BOTH">Keduanya (ZIP)</option></select></label>
+ <label class="full">Format Excel<select id="dFormat"><option value="T01">CommVerge — contoh</option><option value="T02">Smartoptics — contoh</option><option value="BOTH">Keduanya</option></select></label>
  <button id="dDownload" class="cta" type="button">↓ Download Excel Contoh</button><p id="dError" class="hint" role="status" aria-live="polite"></p>
  <div class="smalltools"><button id="dReset" type="button" class="small-link">↺ Reset</button><div class="switches"><button type="button" data-mode="simple" class="switch active">Simple</button><button type="button" data-mode="advanced" class="switch">Advanced</button></div></div>
  <section id="dAdvanced" class="fold advanced-fields"><h3 class="subheading">Customer dan proyek</h3><div class="fields-two"><label>Customer<input id="dCustomer" maxlength="90" value="DEMO Customer"></label><label>Proyek<input id="dProject" maxlength="90" value="Synthetic Sample"></label></div><p class="minor">Hanya dicantumkan di file contoh.</p></section>
