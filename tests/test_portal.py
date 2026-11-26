@@ -75,6 +75,13 @@ class PortalTests(unittest.TestCase):
     p=self.c.post('/api/preview',files=files,data={'margin':'15','fx':'18300'})
     self.assertEqual(p.status_code,200,p.text[:200])
     self.assertEqual(p.json()['source_type'],'commverge_prepriced')
+    # A previously selected T02 must not block a valid, already-priced T01.
+    alternate=self.c.post('/api/preview',files=files,data={'format':'T02','margin':'15','fx':'18300'})
+    self.assertEqual(alternate.status_code,200,alternate.text[:250])
+    self.assertTrue(alternate.json()['format_auto_selected'])
+    self.assertEqual(alternate.json()['format_resolved'],'T01')
+    self.assertEqual(alternate.json()['comparison']['format_viewed'],'T01')
+    self.assertEqual(alternate.json()['comparison']['summary']['unexpected_differences'],0)
     p2=self.c.post('/api/pdf-preview',files=files,data={'format':'T01','margin':'15','fx':'18300'})
     self.assertEqual(p2.status_code,200,p2.text[:200])
     self.assertTrue(p2.content.startswith(b'%PDF-'))
