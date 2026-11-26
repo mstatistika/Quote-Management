@@ -131,11 +131,46 @@ def settings(margin,fx):
     if not Decimal(1000)<=f<=Decimal(1000000) or f!=f.to_integral_value():raise QuoteError('Kurs harus bilangan bulat Rp1.000–Rp1.000.000.')
     return m,f
 
+def prepriced_commverge(z,s,ss,fx):
+    """Already customer-priced CommVerge T01; never apply a second margin."""
+    if (value(s,ss,'C21').strip().lower()!='product name'
+        or 'unit price' not in value(s,ss,'G21').lower()
+        or 'commverge' not in (value(s,ss,'D6')+' '+value(s,ss,'J3')).lower()
+        or 'Quote to DE' not in z.read('xl/workbook.xml').decode('utf-8')
+        or sum(bool(re.fullmatch(r'xl/worksheets/sheet\d+\.xml',n)) for n in z.namelist())!=1):
+        raise QuoteError('Gunakan Smartoptics Detailed Quote asli atau quotation CommVerge T01 yang valid.')
+    items=[];adjustments=0
+    for r in SLOTS:
+        sku=value(s,ss,f'C{r}').strip()
+        if not sku:continue
+        qty=decimal(value(s,ss,f'F{r}'))
+        sell=decimal(value(s,ss,f'G{r}'))
+        if qty<=0 or qty!=qty.to_integral_value() or sell<=0:
+            raise QuoteError(f'Quotation CommVerge baris {r}: qty/harga jual tidak valid.')
+        if sell!=round2(sell):raise QuoteError(f'Baris {r}: harga jual lebih dari 2 desimal.')
+        rev=round2(sell*qty)
+        cached=value(s,ss,f'H{r}')
+        try:err=abs(decimal(cached)-rev)>Decimal('.02')
+        except QuoteError:err=True
+        if err:adjustments+=1
+        items.append({'row':r,'sku':sku,'description':value(s,ss,f'D{r}'),
+          'qty':int(qty),'cost':None,'listcost':None,'sell':sell,'total':rev,
+          'site':{},'source_type':'commverge_prepriced'})
+    if not items:raise QuoteError('Tidak ada item aktif pada quotation CommVerge.')
+    if len({item['sku'] for item in items})!=len(items):raise QuoteError('SKU duplikat pada quotation CommVerge.')
+    revenue=sum((i['total'] for i in items),Decimal(0))
+    return {'source_type':'commverge_prepriced','items':items,'margin':None,'fx':fx,
+      'cost':None,'revenue':round2(revenue),'gm_actual':None,'recomputed_subtotals':adjustments,
+      'customer':value(s,ss,'C10'),'attention':value(s,ss,'C11'),
+      'delivery':value(s,ss,'D12'),'billing':value(s,ss,'D14'),'email':value(s,ss,'D18'),
+      'quote_name':value(s,ss,'F12'),'quote_ref':value(s,ss,'G11') or value(s,ss,'P10'),
+      'original_zip':z}
+
 def source(raw,margin=15,fx=18300):
     m,rate=settings(margin,fx)
     z=workbook(raw);s,ss=sheet_and_shared(z)
     if value(s,ss,'D16').strip().lower()!='part #' or value(s,ss,'G14').strip()!='Quote Number:' or value(s,ss,'G89').strip()!='Total Price:' or 'Smartoptics' not in value(s,ss,'L5'):
-        raise QuoteError('Sumber harus Smartoptics Detailed Quote asli, bukan CommVerge atau format lainnya.')
+        return prepriced_commverge(z,s,ss,rate)
     if 'USD/IDR' in value(s,ss,'D90') or 'repric' in value(s,ss,'E12').lower():
         raise QuoteError('File sudah pernah dinaikkan margin. Upload vendor quote asli.')
     cs=cells(s);items=[];cost_total=Decimal('0')
@@ -163,17 +198,22 @@ def source(raw,margin=15,fx=18300):
     vtotal=decimal(value(s,ss,'M89'))
     if abs(cost_total-vtotal)>Decimal('.02'):raise QuoteError('Grand total supplier tidak cocok dengan item aktif.')
     revenue=sum((i['total'] for i in items),Decimal(0))
-    return {'items':items,'margin':m,'fx':rate,'cost':round2(cost_total),'revenue':round2(revenue),
+    return {'source_type':'smartoptics_original','recomputed_subtotals':0,'items':items,'margin':m,'fx':rate,'cost':round2(cost_total),'revenue':round2(revenue),
         'gm_actual':round2((revenue-cost_total)/revenue*100),
         'quote_name':value(s,ss,'E11'),'quote_ref':value(s,ss,'L14'), 'original_zip':z}
 
 def preview(raw,margin=15,fx=18300):
     q=source(raw,margin,fx)
-    return {'status':'PASS_REVIEW_REQUIRED','target_gm':float(q['margin']),'actual_gm':float(q['gm_actual']),
+    prepriced=q['source_type']=='commverge_prepriced'
+    return {'status':'PASS_REVIEW_REQUIRED','source_type':q['source_type'],
+      'price_note':('Harga jual sudah ada dalam quotation CommVerge. Margin tidak dihitung ulang; upload Smartoptics asli untuk mengubah margin.' if prepriced else 'Margin dihitung dari harga supplier asli.'),
+      'recomputed_subtotals':q['recomputed_subtotals'],
+      'target_gm':None if prepriced else float(q['margin']),
+      'actual_gm':None if prepriced else float(q['gm_actual']),
       'rate':int(q['fx']),'item_count':len(q['items']),'total_usd':float(q['revenue']),
       'total_idr':int((q['revenue']*q['fx']).quantize(Decimal('1'),rounding=ROUND_HALF_UP)),
       'items':[{'sku':i['sku'],'description':i['description'],'qty':i['qty'],'unit_usd':float(i['sell']),
-      'total_usd':float(i['total']),'margin_pct':round(float((i['total']-i['cost']*i['qty'])/i['total']*100),3)} for i in q['items']]}
+      'total_usd':float(i['total']),'margin_pct':None if prepriced else round(float((i['total']-i['cost']*i['qty'])/i['total']*100),3)} for i in q['items']]}
 
 def pack(z,sheet):
     dest=io.BytesIO()
@@ -280,6 +320,10 @@ def qa_export(raw,q,format_id):
 def generate(raw,format_id='T01',margin=15,fx=18300,details='',master_bytes=None):
     if format_id not in ('T01','T02','BOTH'):raise QuoteError('Format tidak valid.')
     meta=metadata(details);q=source(raw,margin,fx)
+    if q['source_type']=='commverge_prepriced':
+        if format_id!='T01':raise QuoteError('Quotation CommVerge yang sudah berharga jual hanya mendukung format T01; untuk T02 gunakan supplier Smartoptics asli.')
+        if master_bytes is None:master_bytes=raw
+        meta={**{key:q.get(key) for key in ('customer','attention','delivery','billing','email') if q.get(key)},**meta}
     date=dt.date.fromisoformat(meta.get('date') or dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().isoformat())
     out=[]
     for code in (['T01','T02'] if format_id=='BOTH' else [format_id]):
