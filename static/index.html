@@ -49,9 +49,10 @@
       <label>Margin (%)<input id="rMargin" type="number" min=".01" max="80" step=".01" value="15"></label>
       <label>Kurs USD/IDR<input id="rFx" type="number" min="1000" max="1000000" value="18300"></label>
     </div>
-    <label class="full">Format Excel<select id="rFormat">
+    <label class="full">Format hasil quotation<select id="rFormat">
       <option value="T01">CommVerge (T01)</option><option value="T02">Smartoptics (T02)</option><option value="BOTH">Keduanya (ZIP)</option>
     </select></label>
+    <p class="minor" id="rFormatHint">Format upload boleh Smartoptics atau CommVerge. Pilih format hasil secara bebas; harga jual yang sudah ada tidak diberi margin lagi.</p>
     <p id="rMasterStatus" class="minor" role="status" aria-live="polite">Master T01 CommVerge: memeriksa template privat…</p>
     <div class="smalltools"><span class="minor">Detail opsional</span><div class="switches">
       <button type="button" class="switch active" data-r-mode="simple">Simple</button><button type="button" class="switch" data-r-mode="advanced">Advanced</button>
