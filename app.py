@@ -16,6 +16,7 @@ import httpx
 from fastapi import FastAPI, Depends, Header, File, UploadFile, HTTPException, Form, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pdf_export import generate_pdf
 from quote_engine import (QuoteError, preview, generate, settings, metadata, source,
     sheet_and_shared, setval, pack, workbook, decimal, amount, round2, qa_export, MAX_UPLOAD)
 
@@ -31,7 +32,7 @@ async def headers(req,handler):
     response.headers['Referrer-Policy']='no-referrer'
     response.headers['X-Frame-Options']='DENY'
     response.headers['Cache-Control']='no-store'
-    response.headers['Content-Security-Policy']="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https:; form-action 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'"
+    response.headers['Content-Security-Policy']="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https:; form-action 'self'; base-uri 'self'; object-src 'none'; frame-src 'self' blob:; frame-ancestors 'none'"
     return response
 
 def auth_conf():
@@ -188,7 +189,7 @@ async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=F
     except Exception as e:safe_error(e)
 
 @app.post('/api/generate')
-async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),user:dict=Depends(permitted)):
+async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),file_type:str=Form('xlsx'),user:dict=Depends(permitted)):
     if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
     raw=await read_quote(quote)
     try:
@@ -197,9 +198,33 @@ async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=
             master=await private_t01_master(user['access_token'])
             if master is None:
                 raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
-        name,data,mime=generate(raw,format,margin,fx,details,master)
+        if file_type=='xlsx':
+            name,data,mime=generate(raw,format,margin,fx,details,master)
+        elif file_type=='pdf':
+            name,data,mime=generate_pdf(raw,format,margin,fx,details,master)
+        else:
+            raise QuoteError('Tipe output harus XLSX atau PDF.')
     except Exception as e:safe_error(e)
     return Response(data,media_type=mime,headers={'Content-Disposition':f'attachment; filename="{name}"','X-Quotation-Status':'DRAFT-REVIEW-REQUIRED'})
+
+@app.post('/api/pdf-preview')
+async def pdf_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),user:dict=Depends(permitted)):
+    if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
+    raw=await read_quote(quote)
+    try:
+        if format not in ('T01','T02','BOTH'):raise QuoteError('Format tidak valid.')
+        pdf_format='T01' if format=='BOTH' else format
+        master=None
+        if pdf_format=='T01':
+            master=await private_t01_master(user['access_token'])
+            if master is None:
+                raise QuoteError('Master CommVerge T01 belum terpasang di penyimpanan privat.')
+        _,data,mime=generate_pdf(raw,pdf_format,margin,fx,details,master)
+    except Exception as e:safe_error(e)
+    return Response(data,media_type='application/pdf',headers={
+        'Content-Disposition':'inline; filename="QUOTATION_PREVIEW_A4.pdf"',
+        'X-Quotation-Status':'DRAFT-REVIEW-REQUIRED',
+    })
 
 @app.get('/')
 async def index():return FileResponse(ROOT/'static/index.html')
