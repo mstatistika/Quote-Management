@@ -152,7 +152,8 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
 
     for index, item in enumerate(q["items"]):
         origin = read_row(original_sheet, original_strings, source_columns, item["row"])
-        draft_row = SLOTS[index] if viewed_format == "T01" else item["row"]
+        draft_row = (SLOTS[index] if viewed_format == "T01" else
+                     18 + index if prepriced else item["row"])
         target = read_row(draft_sheet, draft_strings, draft_columns, draft_row)
         sku_equal = origin["sku"].strip() == target["sku"].strip()
         desc_equal = origin["description"].strip() == target["description"].strip()
@@ -208,7 +209,7 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
         "draft_rows": target_rows,
         "source_total": value(original_sheet, original_strings, source_total_address),
         "draft_total": value(draft_sheet, draft_strings, draft_total_address),
-        "same_layout": prepriced if viewed_format == "T01" else not prepriced,
+        "same_layout": (prepriced and viewed_format == "T01") or (not prepriced and viewed_format == "T02"),
         "summary": {
             "rows": len(src_rows),
             "sku_matches": sku_matches,
@@ -221,8 +222,9 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
             "unexpected_differences": unexpected
         },
         "note": (
-            "Harga jual pada file CommVerge dipertahankan. Subtotal yang tidak cocok atau error telah dihitung ulang. "
-            "Tidak ada penambahan margin kedua."
+            "Harga jual pada file CommVerge dipertahankan ketika dikonversi ke output mana pun. "
+            "Subtotal yang tidak cocok atau error telah dihitung ulang. Tidak ada penambahan margin kedua; "
+            "biaya supplier asli tidak tersedia."
             if prepriced else
             "Harga pada file sumber adalah harga supplier; draft menampilkan harga jual setelah gross margin. "
             "SKU, deskripsi dan QTY harus tetap sama."
