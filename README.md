@@ -1,4 +1,4 @@
-# Quote Generator — v2.3.1
+# Quote Generator — v2.3.2
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
@@ -6,7 +6,7 @@ Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Ver
 
 - Python 3.11+ and `pip install -r requirements.txt`
 - `uvicorn app:app --reload --port 8000`
-- Open `http://127.0.0.1:8000`. The public page has an **interactive synthetic-only demo**; margin and USD/IDR FX drive Excel sample exports.
+- Open `http://127.0.0.1:8000`. The single-page UI begins with authenticated supplier quotation upload. Synthetic demo API routes remain for isolated backend tests, but the demo panel is removed from the production UI.
 
 ## Login pengguna
 
@@ -20,7 +20,7 @@ The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Aut
 
 Pengguna memilih hasil **CommVerge**, **Smartoptics**, atau **Keduanya** tanpa kode teknis format pada antarmuka. File sumber boleh menggunakan salah satu format; tipe file menentukan aturan perhitungan, bukan format output.
 
-Preview hanya menampilkan **quotation hasil generator**, dalam bentuk cuplikan visual satu dokumen (logo yang tersedia, header, customer, item awal/akhir, total, dan terms). File sumber tetap dianalisis di backend, tetapi **tidak ditampilkan sebagai dokumen kedua**. Tujuh pemeriksaan SKU, kuantitas, deskripsi, harga, subtotal, perubahan margin, dan selisih muncul sebagai daftar angka 01–07 di bawah preview. Komparasi memeriksa semua item, termasuk item yang tidak terlihat dalam cuplikan.
+Preview hanya menampilkan **quotation hasil generator**, dalam bentuk cuplikan visual satu dokumen (logo yang tersedia, header, customer, **seluruh item**, total, dan terms) di panel kanan yang bisa di-scroll. File sumber tetap dianalisis di backend, tetapi **tidak ditampilkan sebagai dokumen kedua**. Tujuh pemeriksaan SKU, kuantitas, deskripsi, harga, subtotal, perubahan margin, dan selisih muncul sebagai daftar angka **01–07 vertikal di panel kiri**. Total DRAFT ditempatkan tepat sebelum persetujuan dan tombol download. Panel demo, ringkasan tambahan, dan uraian preview panjang dihapus.
 
 Hasil download Excel, PDF, dan ZIP menggunakan nama CommVerge/Smartoptics dalam filename. Identifier internal tetap dipakai untuk kompatibilitas API dan generator, namun tidak ditampilkan dalam label pengguna atau nama file. Preview visual merupakan ringkasan dari sel XLSX output, bukan rasterisasi pixel-perfect workbook Excel.
 
