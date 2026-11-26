@@ -138,74 +138,133 @@ $('rLogout').onclick=()=>{
   syncDemoBadge();
   onFileSelected();
 };
-const worksheetCols=[
-  ['sku','SKU'],['description','Deskripsi'],['qty','QTY'],['unit','Harga/unit USD'],['total','Subtotal USD']
-];
-function worksheetCell(textValue,tag='td',className=''){
-  const el=document.createElement(tag);
-  if(className)el.className=className;
-  el.textContent=textValue==null?'':String(textValue);
-  return el;
+
+function docNode(tag,cls,textValue){
+  const n=document.createElement(tag);
+  if(cls)n.className=cls;
+  if(textValue!==undefined&&textValue!==null)n.textContent=String(textValue);
+  return n;
 }
-function renderWorksheet(id,rows,columns){
-  const table=$(id);
-  const thead=document.createElement('thead');
-  const letters=document.createElement('tr');
-  letters.className='excel-column-letters';
-  letters.append(worksheetCell('','th','excel-corner'));
-  for(const [key] of worksheetCols)letters.append(worksheetCell(columns[key]||'','th'));
-  const labels=document.createElement('tr');
-  labels.className='excel-heading-row';
-  labels.append(worksheetCell('#','th','excel-row-index'));
-  for(const [,label] of worksheetCols)labels.append(worksheetCell(label,'th'));
-  thead.append(letters,labels);
-  const tbody=document.createElement('tbody');
-  for(const row of rows){
-    const tr=document.createElement('tr');
-    tr.className='excel-data-row status-'+String(row.status||'').toLowerCase();
-    if(row.note)tr.title=row.note;
-    tr.append(worksheetCell(row.row,'th','excel-row-index'));
-    for(const [key] of worksheetCols){
-      let textValue=row[key];
-      let kind=(key==='qty'||key==='unit'||key==='total')?'excel-number':'';
-      if(key==='unit'||key==='total'){
-        const numeric=Number(textValue);
-        if(textValue!==''&&Number.isFinite(numeric))textValue=numeric.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-        else if(textValue&&String(textValue).startsWith('#'))kind+=' excel-error';
-      }
-      const cell=worksheetCell(textValue,'td',kind.trim());
-      if(key==='sku')cell.classList.add('excel-sku');
-      tr.append(cell);
+function valueText(v){
+  if(v===null||v===undefined||String(v).trim()==='')return '—';
+  return String(v);
+}
+function moneyText(v){
+  const raw=String(v??'').trim();
+  if(!raw)return '—';
+  const numeric=Number(raw);
+  return Number.isFinite(numeric)?numeric.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):raw;
+}
+function snapshotTable(items,doc){
+  const tbl=docNode('table','quote-paper-items');
+  const head=docNode('thead');
+  const hrow=docNode('tr');
+  ['Part #','Description','Qty','Unit USD','Amount USD'].forEach(label=>hrow.append(docNode('th','',label)));
+  head.append(hrow);tbl.append(head);
+  const body=docNode('tbody');
+  items.forEach((item,index)=>{
+    if(doc.omitted&&index===doc.first_count){
+      const skipped=docNode('tr','preview-skipped-row');
+      const cell=docNode('td','',`… ${doc.omitted} baris item di tengah tidak ditampilkan dalam cuplikan. Semuanya ikut divalidasi.`);
+      cell.colSpan=5;skipped.append(cell);body.append(skipped);
     }
-    tbody.append(tr);
+    const row=docNode('tr','quote-item-line status-'+String(item.status||'').toLowerCase());
+    row.append(docNode('td','quote-part',valueText(item.sku)));
+    row.append(docNode('td','quote-description',valueText(item.description)));
+    row.append(docNode('td','quote-num',valueText(item.qty)));
+    row.append(docNode('td','quote-num',moneyText(item.unit)));
+    const total=docNode('td','quote-num',moneyText(item.total));
+    if(String(item.total||'').startsWith('#'))total.classList.add('quote-cell-error');
+    row.append(total);body.append(row);
+  });
+  tbl.append(body);return tbl;
+}
+function metaField(label,v){
+  const cell=docNode('div','quote-paper-field');
+  cell.append(docNode('span','quote-field-label',label));
+  cell.append(docNode('span','quote-field-value',valueText(v)));
+  return cell;
+}
+function renderDocumentPreview(nodeId,doc){
+  if(!doc)throw Error('Cuplikan visual Excel tidak diterima dari server.');
+  const container=$(nodeId);
+  const paper=docNode('div','quote-paper-inner');
+  const header=docNode('div','quote-paper-letterhead');
+  const brand=docNode('div','quote-paper-brand');
+  if(doc.logo&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(doc.logo)&&doc.logo.length<270000){
+    const img=document.createElement('img');
+    img.alt='Logo dari file Excel';
+    img.src=doc.logo;
+    img.className='quote-paper-logo';
+    brand.append(img);
+  }else{
+    brand.append(docNode('strong','quote-paper-company',doc.meta.company||doc.template));
   }
-  table.replaceChildren(thead,tbody);
+  const heading=docNode('div','quote-paper-heading');
+  heading.append(docNode('strong','', 'Q U O T A T I O N'));
+  heading.append(docNode('span','',doc.original?'FILE DIUPLOAD':'DRAFT · REVIEW'));
+  header.append(brand,heading);
+  paper.append(header);
+  const company=docNode('div','quote-company-caption',valueText(doc.meta.company));
+  paper.append(company);
+  const metadata=docNode('div','quote-paper-meta');
+  [
+    ['To / Customer',doc.meta.customer],
+    ['Date',doc.meta.date],
+    ['Attn',doc.meta.attention],
+    ['Our Ref #',doc.meta.reference],
+    ['Project',doc.meta.project]
+  ].forEach(([label,v])=>metadata.append(metaField(label,v)));
+  paper.append(metadata);
+  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan dari worksheet '+doc.template);
+  paper.append(caption,snapshotTable(doc.items||[],doc));
+  const totals=docNode('div','quote-paper-totals');
+  totals.append(docNode('span','',doc.original?'TOTAL PADA FILE ASLI':'TOTAL HASIL GENERATOR'));
+  const amount=docNode('strong','',moneyText(doc.total)+' USD');
+  if(String(doc.total||'').startsWith('#')){
+    amount.classList.add('quote-cell-error');
+    amount.textContent=String(doc.total)+' · subtotal sumber perlu koreksi';
+  }
+  totals.append(amount);paper.append(totals);
+  const terms=docNode('div','quote-paper-terms');
+  terms.append(docNode('strong','quote-terms-heading','CONDITIONS / REMARKS'));
+  [['Delivery',doc.meta.delivery],['Payment',doc.meta.payment],['Validity',doc.meta.validity],['Remarks',doc.meta.remarks]]
+    .forEach(([label,v])=>{if(v&&String(v).trim())terms.append(metaField(label,v));});
+  if(terms.children.length===1)terms.append(docNode('span','quote-field-value','Commercial terms: to be confirmed'));
+  paper.append(terms);
+  paper.append(docNode('div','quote-paper-footnote',
+    doc.original?'Cuplikan read-only dari file yang di-upload · tanpa perubahan.'
+                :'Cuplikan read-only dari file XLSX hasil generator · DRAFT perlu review.'));
+  container.replaceChildren(paper);
 }
 function renderComparison(c){
-  if(!c)throw Error('Data perbandingan Excel belum tersedia.');
+  if(!c||!c.source_document||!c.draft_document)throw Error('Data preview visual dokumen belum tersedia.');
   const stats=c.summary;
-  $('rSourceTitle').textContent='A · '+c.source_label;
-  $('rDraftTitle').textContent='B · '+c.draft_label;
-  renderWorksheet('rSourceTable',c.source_rows,c.source_columns);
-  renderWorksheet('rSheetTable',c.draft_rows,c.draft_columns);
-  $('rSourceTotal').textContent='Total sumber: '+String(c.source_total||'—')+' USD';
-  $('rDraftTotal').textContent='Total draft: '+String(c.draft_total||'—')+' USD';
-  $('rCompareNote').textContent=c.note;
-  const badges=[
-    stats.sku_matches+'/'+stats.rows+' SKU cocok',
-    stats.qty_matches+'/'+stats.rows+' QTY cocok',
-    stats.description_matches+'/'+stats.rows+' deskripsi cocok',
-    stats.price_validated+'/'+stats.rows+' harga draft valid',
-    stats.subtotals_repaired+' subtotal diperbaiki',
-    stats.margin_adjustments+' penyesuaian harga margin',
-    stats.unexpected_differences+' selisih tidak diharapkan'
+  $('rSourceTitle').textContent='File upload · '+c.source_label;
+  $('rDraftTitle').textContent='Draft generator · '+c.draft_label;
+  renderDocumentPreview('rSourceDocument',c.source_document);
+  renderDocumentPreview('rDraftDocument',c.draft_document);
+  $('rCompareNote').textContent=c.note+
+    ' Gambar ini adalah cuplikan visual yang merangkum header, beberapa item, total, dan terms; file XLSX yang diunduh tetap menggunakan template asli.';
+  const checks=[
+    ['SKU cocok',stats.sku_matches+'/'+stats.rows],
+    ['QTY cocok',stats.qty_matches+'/'+stats.rows],
+    ['Deskripsi cocok',stats.description_matches+'/'+stats.rows],
+    ['Harga draft valid',stats.price_validated+'/'+stats.rows],
+    ['Subtotal diperbaiki',stats.subtotals_repaired],
+    ['Penyesuaian harga margin',stats.margin_adjustments],
+    ['Selisih tidak diharapkan',stats.unexpected_differences]
   ];
   const wrap=$('rCompareChecks');
-  wrap.replaceChildren(...badges.map((label,index)=>{
-    const span=document.createElement('span');
-    span.className='compare-check'+(index===6&&stats.unexpected_differences?' compare-warning':'');
-    span.textContent=label;return span;
-  }));
+  const nodes=checks.map(([label,amount],index)=>{
+    const li=docNode('li','qa-number-line');
+    li.append(docNode('span','qa-item-index',String(index+1).padStart(2,'0')));
+    li.append(docNode('span','qa-item-name',label));
+    li.append(docNode('strong','qa-item-amount',amount));
+    if(index===6&&stats.unexpected_differences)li.classList.add('qa-item-warning');
+    return li;
+  });
+  wrap.replaceChildren(...nodes);
 }
 function showReviewMode(mode){
   const excel=mode==='excel';
