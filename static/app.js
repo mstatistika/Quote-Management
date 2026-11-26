@@ -138,6 +138,88 @@ $('rLogout').onclick=()=>{
   syncDemoBadge();
   onFileSelected();
 };
+const worksheetCols=[
+  ['sku','SKU'],['description','Deskripsi'],['qty','QTY'],['unit','Harga/unit USD'],['total','Subtotal USD']
+];
+function worksheetCell(textValue,tag='td',className=''){
+  const el=document.createElement(tag);
+  if(className)el.className=className;
+  el.textContent=textValue==null?'':String(textValue);
+  return el;
+}
+function renderWorksheet(id,rows,columns){
+  const table=$(id);
+  const thead=document.createElement('thead');
+  const letters=document.createElement('tr');
+  letters.className='excel-column-letters';
+  letters.append(worksheetCell('','th','excel-corner'));
+  for(const [key] of worksheetCols)letters.append(worksheetCell(columns[key]||'','th'));
+  const labels=document.createElement('tr');
+  labels.className='excel-heading-row';
+  labels.append(worksheetCell('#','th','excel-row-index'));
+  for(const [,label] of worksheetCols)labels.append(worksheetCell(label,'th'));
+  thead.append(letters,labels);
+  const tbody=document.createElement('tbody');
+  for(const row of rows){
+    const tr=document.createElement('tr');
+    tr.className='excel-data-row status-'+String(row.status||'').toLowerCase();
+    if(row.note)tr.title=row.note;
+    tr.append(worksheetCell(row.row,'th','excel-row-index'));
+    for(const [key] of worksheetCols){
+      let textValue=row[key];
+      let kind=(key==='qty'||key==='unit'||key==='total')?'excel-number':'';
+      if(key==='unit'||key==='total'){
+        const numeric=Number(textValue);
+        if(textValue!==''&&Number.isFinite(numeric))textValue=numeric.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+        else if(textValue&&String(textValue).startsWith('#'))kind+=' excel-error';
+      }
+      const cell=worksheetCell(textValue,'td',kind.trim());
+      if(key==='sku')cell.classList.add('excel-sku');
+      tr.append(cell);
+    }
+    tbody.append(tr);
+  }
+  table.replaceChildren(thead,tbody);
+}
+function renderComparison(c){
+  if(!c)throw Error('Data perbandingan Excel belum tersedia.');
+  const stats=c.summary;
+  $('rSourceTitle').textContent='A · '+c.source_label;
+  $('rDraftTitle').textContent='B · '+c.draft_label;
+  renderWorksheet('rSourceTable',c.source_rows,c.source_columns);
+  renderWorksheet('rSheetTable',c.draft_rows,c.draft_columns);
+  $('rSourceTotal').textContent='Total sumber: '+String(c.source_total||'—')+' USD';
+  $('rDraftTotal').textContent='Total draft: '+String(c.draft_total||'—')+' USD';
+  $('rCompareNote').textContent=c.note;
+  const badges=[
+    stats.sku_matches+'/'+stats.rows+' SKU cocok',
+    stats.qty_matches+'/'+stats.rows+' QTY cocok',
+    stats.description_matches+'/'+stats.rows+' deskripsi cocok',
+    stats.price_validated+'/'+stats.rows+' harga draft valid',
+    stats.subtotals_repaired+' subtotal diperbaiki',
+    stats.margin_adjustments+' penyesuaian harga margin',
+    stats.unexpected_differences+' selisih tidak diharapkan'
+  ];
+  const wrap=$('rCompareChecks');
+  wrap.replaceChildren(...badges.map((label,index)=>{
+    const span=document.createElement('span');
+    span.className='compare-check'+(index===6&&stats.unexpected_differences?' compare-warning':'');
+    span.textContent=label;return span;
+  }));
+}
+function showReviewMode(mode){
+  const excel=mode==='excel';
+  $('rShowExcel').classList.toggle('active',excel);
+  $('rShowPdf').classList.toggle('active',!excel);
+  $('rShowExcel').setAttribute('aria-pressed',String(excel));
+  $('rShowPdf').setAttribute('aria-pressed',String(!excel));
+  $('rExcelPreview').hidden=!excel;
+  $('rPdfPreview').hidden=excel;
+  if(!excel&&realPreview&&!pdfObjectUrl)refreshPdfPreview();
+}
+$('rShowExcel').onclick=()=>showReviewMode('excel');
+$('rShowPdf').onclick=()=>showReviewMode('pdf');
+
 function collectDetails(){
   const meta={};
   if(realMode==='advanced'){
@@ -181,8 +263,10 @@ $('rPreview').onclick=async()=>{
   const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';
   invalidateReal();
   try{
-    const r=await remoteApi('/api/preview',form());
+    const epoch=previewEpoch;
+    const r=await remoteApi('/api/preview',pdfForm());
     const p=await r.json();
+    if(epoch!==previewEpoch)return;
     realPreview=p;
     $('rUsd').textContent=sf(p.total_usd);
     $('rIdr').textContent=rf(p.total_idr);
@@ -197,13 +281,11 @@ $('rPreview').onclick=async()=>{
       :`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;
     $('rPricingNote').textContent=p.price_note||'';
     $('rPricingNote').hidden=!p.price_note;
-    $('rItems').replaceChildren(...p.items.map(i=>itemElement({
-      sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd
-    })));
+    renderComparison(p.comparison);
+    showReviewMode('excel');
     $('rResults').hidden=false;
     $('rAck').checked=false;
     $('rGenerate').disabled=true;
-    await refreshPdfPreview();
   }catch(e){invalidateReal();$('rError').textContent=e.message;}
   finally{btn.disabled=false;}
 };
