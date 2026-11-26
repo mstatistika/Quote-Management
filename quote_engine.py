@@ -349,7 +349,8 @@ def qa_export(raw,q,format_id):
             if converted and value(s,ss,f'F{r}'):
                 raise QuoteError('T02 supplier list cost tidak boleh dikarang.')
         for r in range(18,89):
-            if r not in active and any(value(s,ss,f'{col}{r}') for col in ('D','F','G','M')):
+            check_cols=('D','E','F','G','L','M') if converted else ('F','G','M')
+            if r not in active and any(value(s,ss,f'{col}{r}') for col in check_cols):
                 raise QuoteError('Data lama tersisa pada baris output T02.')
     else:
         if decimal(value(s,ss,'H45'))!=q['revenue']:raise QuoteError('T01 subtotal mismatch.')
