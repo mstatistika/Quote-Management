@@ -20,7 +20,7 @@ The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Aut
 
 - **DEMO**: synthetic pricing and synthetic sample XLSX/ZIP; no supplier files or real quotation metadata.
 - **REAL (requires configured Auth)**: Supabase Auth verified server-side, with explicit `ALLOWED_EMAILS` allowlist. Needs a **separate Supabase project**; no secrets in this repository.
-- **Original supplier XLSX**: authenticated upload, parsed in-memory, checked against Smartoptics Detailed Quote anchors, pricing gross margin (not markup), anti-double-margin, QA, download DRAFT only.
+- **Source XLSX**: authenticated upload, parsed in-memory. Smartoptics Detailed Quote original is repriced from supplier cost with gross margin (not markup). CommVerge T01 already priced is repaired using original existing unit prices without extra margin. QA, anti-double-margin checks and DRAFT review always apply.
 - **T02 output**: preserves supplier's Smartoptics original workbook; marked DRAFT not supplier-issued.
 - **PDF (A4)**: available from authenticated quotation screen, using the exact same validated source, margin, and FX as Excel. A built-in, authenticated PDF preview renders prior to download. The PDF uses a compact A4 quotation layout; it is not a pixel-for-pixel print of the original XLSX template. T01 includes the official CommVerge logo supplied via the private master. T02 is clearly labelled as a repriced DRAFT, not supplier-issued. `BOTH` downloads a ZIP of two Excel files or two PDF files, according to the selected output type.
 - **Output selection**: Excel (`.xlsx`) or PDF (`.pdf`), with ZIP packaging for BOTH. All real operations require Supabase Auth and server allowlist; supplier workbooks are processed in-memory only.
@@ -44,7 +44,7 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 
 ## Limitations
 
-- Source adapter currently supports the original Smartoptics Detailed Quote structure only.
+- Source adapters: (1) original Smartoptics Detailed Quote (gross margin is calculated from original supplier unit costs), and (2) previously priced single-sheet CommVerge T01 customer quotation (existing unit selling prices are preserved, subtotal formula errors are recalculated from quantity × unit price, gross margin cannot be recalculated without supplier costs). The latter can be previewed/exported to T01 Excel or A4 PDF using its own validated, branded workbook; it does not need a second template upload. It cannot generate T02 and it does not apply extra margin.
 - T01 master must be provided separately and rights to use its brand/template must be confirmed by the issuer.
 - Demo is **not** equivalent to successful authenticated end-to-end verification; real supplier XLSX output still requires live QA.
 - No built-in pricing/tax assumptions beyond explicitly entered margin and FX.
