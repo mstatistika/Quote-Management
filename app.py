@@ -84,7 +84,16 @@ async def status():
     url,key,allow=auth_conf()
     return {'version':'2.1.0','state':'PREVIEW','demo_ready':True,'real_auth_configured':bool(url),
             't01_master_ready':(ROOT/'private/T01_MASTER_CLEAN.xlsx').is_file(),
-            't02_uses_original_source':True,'today':today()}
+            't02_uses_original_source':True,'real_processing_enabled':bool(url and real_processing_ready()),'today':today()}
+
+@app.get('/api/whoami')
+async def whoami(user:dict=Depends(permitted)):
+    # Authorization is verified server-side against Supabase and ALLOWED_EMAILS.
+    return {'email':user['email'], 'authorized':True}
+
+def real_processing_ready():
+    # Explicit release gate: a temporary PIN must not enable supplier uploads.
+    return os.environ.get('ENABLE_REAL_QUOTATIONS','').strip().lower() in ('true','1','yes')
 
 @app.get('/api/auth-config')
 async def auth_config():
@@ -132,12 +141,14 @@ async def read_quote(file:UploadFile):
 
 @app.post('/api/preview')
 async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),user:dict=Depends(permitted)):
+    if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
     raw=await read_quote(quote)
     try:return preview(raw,margin,fx)
     except Exception as e:safe_error(e)
 
 @app.post('/api/generate')
 async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),t01_master:UploadFile|None=File(None),user:dict=Depends(permitted)):
+    if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
     raw=await read_quote(quote)
     try:
         master=None
