@@ -2,16 +2,21 @@
 <html lang="id">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#f6f8fa">
+<meta name="theme-color" content="#0D1E3F">
 <title>Quote Management System · Quotation Generator</title>
 <link rel="stylesheet" href="/static/style.css"><script defer src="/static/app.js"></script>
 </head>
 <body><div class="app">
-<header class="top"><a class="brand" href="/" aria-label="Quote Management System">Quote Management System</a><span id="statustag" class="sr-only" role="status">Preview</span><img class="cr-logo" src="/static/cr-mark-logo.png" alt="Logo Collective Revivers" width="46" height="46" loading="eager"></header>
-<div class="intro"><h1>Buat Quotation</h1><p>Upload, atur harga, download. Sesederhana itu.</p></div>
+<header class="top">
+  <div class="brand-group">
+    <h1 class="brand-title"><a class="brand" href="/" aria-label="Quote Management System">Quote Management System</a></h1>
+    <p class="tagline">Upload, atur harga, download. Sesederhana itu.</p>
+  </div>
+  <div class="top-right"><span id="demoBadge" class="demo-pill">DEMO</span><img class="cr-logo" src="/static/cr-mark-logo.png" alt="Logo Collective Revivers" width="46" height="46" loading="eager"></div>
+  <span id="statustag" class="sr-only" role="status">Preview</span>
+</header>
 <nav class="tabs" aria-label="Pilih mode penggunaan"><button class="tab active" data-page="demo" type="button">Coba Demo</button><button class="tab" data-page="real" type="button">File Asli <span class="lock">🔒</span></button></nav>
 <section id="demo" class="view active" aria-label="Demo quotation"><div class="card">
- <div class="row between"><div><span class="eyebrow">CONTOH QUOTATION</span><p class="minor">Data contoh, tanpa login</p></div><span class="tag">DEMO</span></div>
  <div class="fields-two price-fields">
   <label>Margin (%)<input id="dMargin" type="number" min=".01" max="80" step=".01" value="15" inputmode="decimal"></label>
   <label>Kurs USD/IDR<input id="dFx" type="number" min="1000" max="1000000" step="1" value="18300" inputmode="numeric"></label>
@@ -23,7 +28,6 @@
  <details id="dAdvanced" class="fold"><summary>Detail customer &amp; proyek</summary><div class="fields-two"><label>Customer<input id="dCustomer" maxlength="90" value="DEMO Customer"></label><label>Proyek<input id="dProject" maxlength="90" value="Synthetic Sample"></label></div><p class="minor">Hanya dicantumkan di file contoh.</p></details>
  <details class="fold" id="dDetails"><summary>Lihat 3 item dan pemeriksaan</summary><div id="dItems" class="item-list"></div><div class="qa"><span class="check">✓</span> <span id="dQa">5/5 pemeriksaan lulus</span></div></details>
  <div class="hidden" aria-hidden="true"><span id="dGm">15%</span><span id="dRate">Rp18.300</span></div>
- <p class="disclaimer">Hasil DEMO bukan quotation untuk customer. File asli memerlukan akses privat dan review.</p>
 </div></section>
 <section id="real" class="view" aria-label="Quotation file asli">
  <div id="realUnconfigured" class="card"><h2>File asli belum diaktifkan</h2><p class="minor">Akun privat untuk file asli perlu dikonfigurasi. Sementara gunakan Demo untuk mencoba alur dan download Excel contoh.</p></div>
