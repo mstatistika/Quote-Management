@@ -161,7 +161,7 @@ async def demo_export(margin:float=15,fx:int=18300,format:str='T01',customer:str
     def make_sample(code):
         z=workbook((ROOT/'private/DEMO_MASTER.xlsx').read_bytes())
         s,ss=sheet_and_shared(z)
-        setval(s,'B4',code+'-DEMO-SAMPLE');setval(s,'C4',today());setval(s,'A7',mar,'number');setval(s,'B7',rate,'number')
+        setval(s,'B4',('CommVerge' if code=='T01' else 'Smartoptics')+'-DEMO-SAMPLE');setval(s,'C4',today());setval(s,'A7',mar,'number');setval(s,'B7',rate,'number')
         setval(s,'C7',total,'number');setval(s,'D7',int((total*rate).quantize(Decimal('1'),rounding=ROUND_HALF_UP)),'number')
         for i,row in zip(items,range(11,14)):
             setval(s,f'A{row}',i['sku']);setval(s,f'B{row}',i['description']);setval(s,f'C{row}',i['qty'],'number');setval(s,f'D{row}',i['unit'],'number');setval(s,f'E{row}',(f'ROUND(C{row}*D{row},2)',i['total']),'formula')
