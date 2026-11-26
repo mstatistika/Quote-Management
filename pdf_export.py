@@ -58,13 +58,21 @@ def pdf_for_one(q,code,meta,date,master_bytes):
  story=[]
  if code=='T01' and master_bytes:
   try:
-   with zipfile.ZipFile(io.BytesIO(master_bytes)) as z:logo=z.read('xl/media/image.jpg')
+   with zipfile.ZipFile(io.BytesIO(master_bytes)) as z:
+    candidates=['xl/media/image.jpg','xl/media/image1.jpeg','xl/media/image.jpeg']
+    name=next((p for p in candidates if p in z.namelist()),None)
+    if not name:raise KeyError('CommVerge logo tidak ada')
+    logo=z.read(name)
    story.append(Image(io.BytesIO(logo),width=154,height=46,kind='proportional'))
    story.append(Spacer(1,7))
   except (KeyError,zipfile.BadZipFile):story.append(para('COMMVERGE SOLUTIONS','metahead'))
  else:story.append(para('SMARTOPTICS SOURCE FORMAT - REPRICED COPY','metahead'))
  story.append(Paragraph('QUOTATION <font color="#AA4B38">| DRAFT</font>',S['title']))
- story.append(Paragraph('Review copy only. Pricing is based on source vendor costs and selected gross margin.',S['sub']))
+ story.append(Paragraph(
+  'Already-priced CommVerge quotation. Existing unit selling prices retained; subtotals recomputed for review.'
+  if q.get('source_type')=='commverge_prepriced'
+  else 'Review copy only. Pricing is based on source vendor costs and selected gross margin.',
+  S['sub']))
  story.append(Spacer(1,12))
  customer=meta.get('customer','CUSTOMER - TBC')
  project=meta.get('project') or q['quote_name'] or 'Quotation draft'
@@ -101,7 +109,9 @@ def pdf_for_one(q,code,meta,date,master_bytes):
  total_usd=q['revenue']
  total_idr=(total_usd*q['fx']).quantize(Decimal('1'),rounding=ROUND_HALF_UP)
  sums=Table([
-  [para('Gross margin target','small'),para(str(q['margin'])+'%','num')],
+  ([para('Pricing basis','small'),para('Existing selling prices','num')]
+   if q.get('source_type')=='commverge_prepriced'
+   else [para('Gross margin target','small'),para(str(q['margin'])+'%','num')]),
   [para('TOTAL USD (excl. tax)','metahead'),Paragraph('USD '+money(total_usd),S['total'])],
   [para('Reference total IDR','small'),Paragraph('Rp '+idr(total_idr),S['total'])],
  ],colWidths=[351,170],hAlign='LEFT')
@@ -136,6 +146,9 @@ def generate_pdf(raw,format_id='T01',margin=15,fx=18300,details='',master_bytes=
  # Run the same QA checks as the Excel download.
  generate(raw,format_id,margin,fx,details,master_bytes)
  q=source(raw,margin,fx);meta=metadata(details)
+ if q.get('source_type')=='commverge_prepriced':
+  if master_bytes is None:master_bytes=raw
+  meta={**{key:q.get(key) for key in ('customer','attention','delivery','billing','email') if q.get(key)},**meta}
  date=dt.date.fromisoformat(meta.get('date') or dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().isoformat())
  codes=['T01','T02'] if format_id=='BOTH' else [format_id]
  exports=[]
