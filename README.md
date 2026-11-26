@@ -16,6 +16,10 @@ Credentials are **not** embedded in source code. The browser sends them to Supab
 
 The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Authenticated processing becomes available when the three Supabase configuration variables are present and the account passes server authorization. Password `123456` is trivially guessable; replace it with a stronger individual password through the future user settings flow. Supabase rate limiting and login-abuse monitoring are recommended.
 
+## Read-only source vs draft Excel preview
+
+After a signed-in user uploads XLSX and selects the output template, **Preview Excel & Bandingkan** generates the actual draft workbook in memory with the same validation as Download. The UI renders two adjacent, scrollable, spreadsheet-style tables: the original workbook's SKU/description/QTY/unit/subtotal cells and the actual generated workbook's corresponding cells. Row numbers and original Excel column letters are shown, with matched SKU/QTY, expected gross-margin adjustments, repaired subtotal errors, and unexpected differences reported separately. Any unexpected SKU/description/QTY or calculated-price mismatch blocks the preview and download. The worksheet preview is a review grid, **not a pixel-perfect Excel renderer**; download XLSX preserves the underlying template styling and logos. The PDF A4 preview remains accessible on demand.
+
 ## Production architecture
 
 - **DEMO**: synthetic pricing and synthetic sample XLSX/ZIP; no supplier files or real quotation metadata.
