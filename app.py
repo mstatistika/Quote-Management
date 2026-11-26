@@ -86,7 +86,7 @@ def today():return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().is
 @app.get('/api/status')
 async def status():
     url,key,allow=auth_conf()
-    return {'version':'2.2.2','state':'PREVIEW','excel_comparison_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
+    return {'version':'2.2.3','state':'PREVIEW','excel_comparison_enabled':True,'visual_document_preview_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
             'commverge_prepriced_supported':True,
             't01_master_ready':None,'t01_master_location':'private_supabase_storage',
             't02_uses_original_source':True,'real_processing_enabled':bool(url and real_processing_ready()),'today':today()}
