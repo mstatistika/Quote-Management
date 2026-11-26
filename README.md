@@ -1,4 +1,4 @@
-# Quote Generator — v2.3.0
+# Quote Generator — v2.3.1
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
@@ -16,25 +16,13 @@ Credentials are **not** embedded in source code. The browser sends them to Supab
 
 The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Authenticated processing becomes available when the three Supabase configuration variables are present and the account passes server authorization. Password `123456` is trivially guessable; replace it with a stronger individual password through the future user settings flow. Supabase rate limiting and login-abuse monitoring are recommended.
 
-## Read-only visual quotation preview (v2.2.3)
+## Preview hasil quotation (v2.3.1)
 
-Authenticated preview uses the source XLSX and the **actual generated XLSX** to build two compact, paper-like document snapshots. They are stacked in one scrollable page: **uploaded source above** and **generated draft below**. Each includes the letterhead (using an original raster logo embedded in the XLSX when present), metadata, selected first/last items (with omitted count), original vs calculated total, and visible commercial terms. The seven QA checks are displayed as a numbered **01-07 vertical list below both documents**. The comparison continues to validate **all** rows, even those not pictured in the excerpt, including independent SKU, QTY, description, expected prices and totals. For pre-priced CommVerge documents the existing unit prices are held and formula/subtotal errors are flagged. The visual rendering is an intentionally compact preview of workbook cell values, not a pixel-perfect Excel viewer. Downloaded XLSX preserves the template format and images.
+Pengguna memilih hasil **CommVerge**, **Smartoptics**, atau **Keduanya** tanpa kode teknis format pada antarmuka. File sumber boleh menggunakan salah satu format; tipe file menentukan aturan perhitungan, bukan format output.
 
-## Independent source and destination formats (v2.3.0)
+Preview hanya menampilkan **quotation hasil generator**, dalam bentuk cuplikan visual satu dokumen (logo yang tersedia, header, customer, item awal/akhir, total, dan terms). File sumber tetap dianalisis di backend, tetapi **tidak ditampilkan sebagai dokumen kedua**. Tujuh pemeriksaan SKU, kuantitas, deskripsi, harga, subtotal, perubahan margin, dan selisih muncul sebagai daftar angka 01–07 di bawah preview. Komparasi memeriksa semua item, termasuk item yang tidak terlihat dalam cuplikan.
 
-Upload accepts validated **Smartoptics original vendor quote** or **already customer-priced CommVerge T01 quote**. The user chooses the output independently: CommVerge (T01), Smartoptics-style (T02), or both (ZIP), in XLSX or PDF. Source type is *detected only to determine price basis*:
-
-- Smartoptics original supplier cost: target gross margin is applied once to produce selling prices.
-- Already-priced CommVerge selling prices: retain selling prices, repair broken subtotal formulas, never apply another margin; supplier cost/list price is left unknown.
-- CommVerge output: uses a branded approved T01 master (or the uploaded T01 itself if already branded).
-- Smartoptics output: keeps the supplier original for native T02, or uses the repository's sanitized synthetic T02 layout for cross-conversion from T01. Cross-formatted output is explicitly labelled **DRAFT / NOT SUPPLIER ISSUED** and needs visual QA.
-
-A private CommVerge T01 master is required for Smartoptics-supplier → CommVerge T01; until installed in the private bucket, that target format returns an explicit missing-template error. There is no format override based on the upload.
-
-## Source-versus-draft verification
-
-The system compares original XLSX cell values against the **actual generated XLSX** for all item rows: SKU, description, QTY, selling price, and subtotal. It distinguishes normal gross-margin changes from repaired source formula errors and blocks unexpected discrepancies. The compact visual previews display the uploaded original **above** the generated draft. The source and draft both show the document's header, original embedded raster logo when available, first/last items, total, and commercial terms. QA details appear in a **numbered 01–07 vertical list below**. This is an accurate cell-derived document-style summary, not a full Excel rasterization; for complete formatting, use Download XLSX.
-
+Hasil download Excel, PDF, dan ZIP menggunakan nama CommVerge/Smartoptics dalam filename. Identifier internal tetap dipakai untuk kompatibilitas API dan generator, namun tidak ditampilkan dalam label pengguna atau nama file. Preview visual merupakan ringkasan dari sel XLSX output, bukan rasterisasi pixel-perfect workbook Excel.
 
 ## Production architecture
 
