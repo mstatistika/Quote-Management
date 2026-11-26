@@ -332,13 +332,14 @@ $('rPreview').onclick=async()=>{
     const prepriced=p.source_type==='commverge_prepriced';
     $('rMargin').disabled=prepriced;
     for(const opt of $('rFormat').options)opt.disabled=prepriced&&opt.value!=='T01';
-    if(prepriced)$('rFormat').value='T01';
+    if(p.format_resolved)$('rFormat').value=p.format_resolved;
+    else if(prepriced)$('rFormat').value='T01';
     renderMasterStatus();
     updateDownloadLabel();
     $('rResultInfo').textContent=prepriced
       ?`${p.item_count} item · Harga jual existing dipertahankan · ${p.recomputed_subtotals} subtotal diperbaiki (QTY × harga unit) · DRAFT wajib review. Margin tambahan tidak diterapkan.`
       :`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;
-    $('rPricingNote').textContent=p.price_note||'';
+    $('rPricingNote').textContent=[p.format_notice,p.price_note].filter(Boolean).join(' ');
     $('rPricingNote').hidden=!p.price_note;
     renderComparison(p.comparison);
     showReviewMode('excel');
