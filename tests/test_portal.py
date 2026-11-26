@@ -107,6 +107,25 @@ class PortalTests(unittest.TestCase):
   self.assertEqual(float(c['draft_rows'][0]['total']),240.0)
   c20=compare_workbooks(raw,'T01',20,18300,master=raw)
   self.assertEqual(c['draft_total'],c20['draft_total'])
+ def test_visual_document_source_and_draft_snapshots(self):
+  c=compare_workbooks(SRC1,'T02',15,18300)
+  self.assertIn('source_document',c)
+  self.assertIn('draft_document',c)
+  self.assertEqual(c['source_document']['template'],'T02')
+  self.assertEqual(c['draft_document']['template'],'T02')
+  self.assertEqual(c['source_document']['item_count'],3)
+  self.assertEqual(len(c['source_document']['items']),3)
+  self.assertEqual(float(c['draft_document']['total']),3631.80)
+  self.assertEqual(c['source_document']['meta']['company'],'Smartoptics')
+ def test_visual_document_commverge_preserves_branding_and_repairs_total(self):
+  raw=synthetic_commverge_priced()
+  c=compare_workbooks(raw,'T01',15,18300,master=raw)
+  self.assertEqual(c['source_document']['template'],'T01')
+  self.assertEqual(c['draft_document']['template'],'T01')
+  self.assertEqual(c['source_document']['total'],'')
+  self.assertEqual(float(c['draft_document']['total']),240)
+  self.assertEqual(c['source_document']['items'][0]['total'],'#VALUE!')
+  self.assertEqual(float(c['draft_document']['items'][0]['total']),240)
  def test_authenticated_compare_api(self):
   fake={'SUPABASE_URL':'https://test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
   app.dependency_overrides[permitted]=lambda:{'id':'test','email':'test@example.com','access_token':'test'}
