@@ -191,22 +191,21 @@ async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=F
         if format not in ('T01','T02','BOTH'):
             raise QuoteError('Format quotation tidak valid.')
         result=preview(raw,margin,fx)
-        # An already-priced CommVerge input is itself a T01 branded quotation.
-        # Resolve the dropdown *before* rendering the generated draft; otherwise
-        # a leftover T02 choice prevents review even though the upload is valid.
-        resolved='T01' if result['source_type']=='commverge_prepriced' else format
+        # Source template and output template are independently selected.
+        # If already customer-priced, existing unit selling prices are maintained
+        # regardless of which output format the user chooses.
         master=None
-        if resolved in ('T01','BOTH'):
+        if format in ('T01','BOTH'):
             if result['source_type']=='commverge_prepriced':
                 master=raw
             else:
                 master=await private_t01_master(user['access_token'])
                 if master is None:
-                    raise QuoteError('Master CommVerge T01 belum tersedia; pilih Smartoptics (T02) atau minta admin memasang master.')
-        result['format_resolved']=resolved
-        result['format_auto_selected']=resolved!=format
-        result['format_notice']=('File CommVerge terdeteksi: format otomatis diubah ke CommVerge (T01). Harga jual lama dipertahankan.' if resolved!=format else '')
-        result['comparison']=compare_workbooks(raw,resolved,margin,fx,details,master)
+                    raise QuoteError('Master output CommVerge T01 belum tersedia di storage privat. Pilih T02 atau minta admin memasang master T01.')
+        result['format_resolved']=format
+        result['format_auto_selected']=False
+        result['format_notice']=('Input CommVerge sudah berharga jual: harga dipertahankan tanpa margin tambahan.' if result['source_type']=='commverge_prepriced' else '')
+        result['comparison']=compare_workbooks(raw,format,margin,fx,details,master)
         return result
     except Exception as e:safe_error(e)
 
