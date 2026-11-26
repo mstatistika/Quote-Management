@@ -94,13 +94,11 @@ def _document_snapshot(raw, code, rows, original=False):
             "validity": get("E95"),
             "remarks": get("E97"),
         }
+    # Show every generated item. The right-hand preview area scrolls independently,
+    # while the comparison QA checks all rows against the uploaded source.
     count = len(rows)
-    if count <= 7:
-        excerpt = rows
-        omitted = 0
-    else:
-        excerpt = rows[:4] + rows[-2:]
-        omitted = count - 6
+    excerpt = rows
+    omitted = 0
     # The source grand total may be an Excel error; never replace it silently.
     subtotal_addr = "H45" if t01 else "M89"
     original_total = get(subtotal_addr)
