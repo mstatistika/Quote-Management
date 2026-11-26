@@ -15,13 +15,13 @@ function renderMasterStatus(){
   info.hidden=$('rFormat').value==='T02' || !realPreview || realPreview.source_type==='commverge_prepriced';
   if(info.hidden)return;
   if(masterReady===true){
-    info.textContent='Master CommVerge T01 tersedia di penyimpanan privat.';
+    info.textContent='Master CommVerge tersedia di penyimpanan privat.';
     info.classList.remove('error');
   }else if(masterReady===false){
-    info.textContent='Master CommVerge T01 belum terpasang di server privat. Hubungi admin; Smartoptics (T02) tetap bisa digunakan.';
+    info.textContent='Master CommVerge belum terpasang di server privat. Hubungi admin; format Smartoptics tetap bisa digunakan.';
     info.classList.add('error');
   }else{
-    info.textContent='Memeriksa master CommVerge T01 di server privat…';
+    info.textContent='Memeriksa master CommVerge di server privat…';
     info.classList.remove('error');
   }
 }
@@ -216,7 +216,7 @@ function renderDocumentPreview(nodeId,doc){
     ['Project',doc.meta.project]
   ].forEach(([label,v])=>metadata.append(metaField(label,v)));
   paper.append(metadata);
-  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan dari worksheet '+doc.template);
+  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan hasil '+(doc.template==='T01'?'CommVerge':'Smartoptics'));
   paper.append(caption,snapshotTable(doc.items||[],doc));
   const totals=docNode('div','quote-paper-totals');
   totals.append(docNode('span','',doc.original?'TOTAL PADA FILE ASLI':'TOTAL HASIL GENERATOR'));
@@ -238,14 +238,12 @@ function renderDocumentPreview(nodeId,doc){
   container.replaceChildren(paper);
 }
 function renderComparison(c){
-  if(!c||!c.source_document||!c.draft_document)throw Error('Data preview visual dokumen belum tersedia.');
+  if(!c||!c.draft_document)throw Error('Preview quotation hasil generator belum tersedia.');
   const stats=c.summary;
-  $('rSourceTitle').textContent='File upload · '+c.source_label;
-  $('rDraftTitle').textContent='Draft generator · '+c.draft_label;
-  renderDocumentPreview('rSourceDocument',c.source_document);
+  $('rDraftTitle').textContent='Quotation hasil generator · '+c.draft_label;
   renderDocumentPreview('rDraftDocument',c.draft_document);
   $('rCompareNote').textContent=c.note+
-    ' Gambar ini adalah cuplikan visual yang merangkum header, beberapa item, total, dan terms; file XLSX yang diunduh tetap menggunakan template asli.';
+    ' Preview hanya menampilkan hasil generator. Pemeriksaan tetap membandingkan seluruh item dengan file upload; format lengkap tersedia saat download Excel.';
   const checks=[
     ['SKU cocok',stats.sku_matches+'/'+stats.rows],
     ['QTY cocok',stats.qty_matches+'/'+stats.rows],
@@ -310,7 +308,7 @@ async function refreshPdfPreview(){
     $('rPdfFrame').src=pdfObjectUrl;
     $('rPdfFrame').hidden=false;
     $('rPreviewMessage').textContent=$('rFormat').value==='BOTH'
-      ?'Menampilkan preview CommVerge (T01). Jika memilih kedua format, file download berisi T01 dan T02.'
+      ?'Preview menampilkan hasil CommVerge. Download Keduanya berisi hasil CommVerge dan Smartoptics.'
       :'Preview PDF A4 sesuai item, margin, kurs, dan detail quotation yang telah divalidasi.';
   }catch(e){
     if(epoch===previewEpoch){
