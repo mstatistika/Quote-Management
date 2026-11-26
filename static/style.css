@@ -134,3 +134,14 @@ footer{color:#766D64;padding:22px 0}
 .upload-control:hover{background:var(--ms-navy-highlight)}
 .upload-control:focus-within{outline:3px solid var(--ms-khaki);outline-offset:3px}
 .upload-control .file-picker{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;clip-path:none;pointer-events:auto;cursor:pointer;z-index:2;display:block;border:0;padding:0}
+
+/* v2.3: no collapse controls, full work surface always visible */
+.demo-shell{padding:0 18px 14px}
+.demo-heading{margin:0;padding:13px 0 12px;font-size:13px;line-height:1.3;font-weight:800;color:var(--ms-navy);border-bottom:1px solid var(--ms-light-khaki)}
+.demo-shell #demo{padding:13px 0 0;border-top:0}
+.subheading{font-size:12px;color:var(--ms-navy);font-weight:800;margin:0 0 9px}
+.demo-shell .fold{margin-top:12px;padding-top:10px}
+.demo-shell .item{padding:8px 0}
+.demo-shell .item .desc{font-size:11px}
+.advanced-fields .fields-two{margin-top:12px}
+@media(max-width:440px){.demo-shell{padding:0 15px 12px}.demo-heading{padding:12px 0 10px}}
