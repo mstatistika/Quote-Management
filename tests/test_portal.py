@@ -2,9 +2,11 @@ from __future__ import annotations
 import io,json,sys,unittest,zipfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from quote_engine import preview,generate,source,QuoteError,sheet_and_shared,value
-from app import app
+from pdf_export import generate_pdf
+from app import app,permitted
 ROOT=Path(__file__).resolve().parents[1]
 T01=(ROOT/'private/T01_MASTER_CLEAN.xlsx').read_bytes() if (ROOT/'private/T01_MASTER_CLEAN.xlsx').exists() else None
 SRC1=(ROOT/'tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx').read_bytes()
@@ -26,6 +28,29 @@ class PortalTests(unittest.TestCase):
  def test_master_status_requires_auth(self):
   r=self.c.get('/api/master-status')
   self.assertIn(r.status_code,(401,503))
+ def test_pdf_export_t02_a4(self):
+  name,data,mime=generate_pdf(SRC1,'T02',15,18300,'{"customer":"TEST"}')
+  self.assertTrue(name.endswith('.pdf'))
+  self.assertEqual(mime,'application/pdf')
+  self.assertTrue(data.startswith(b'%PDF-'))
+  self.assertIn(b'/MediaBox',data)
+  self.assertGreater(len(data),2000)
+ def test_pdf_requires_auth(self):
+  r=self.c.post('/api/pdf-preview',files={'quote':('supplier.xlsx',SRC1)},data={'format':'T02'})
+  self.assertIn(r.status_code,(401,503))
+ def test_authenticated_pdf_endpoint(self):
+  fake={'SUPABASE_URL':'https://my-test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
+  app.dependency_overrides[permitted]=lambda:{'id':'example','email':'test@example.com','access_token':'test'}
+  try:
+   with patch.dict('os.environ',fake):
+    r=self.c.post('/api/pdf-preview',files={'quote':('supplier.xlsx',SRC1)},data={'format':'T02','margin':'15','fx':'18300'})
+    self.assertEqual(r.status_code,200,r.text[:200])
+    self.assertEqual(r.headers['content-type'],'application/pdf')
+    self.assertTrue(r.content.startswith(b'%PDF-'))
+    r2=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'format':'T02','margin':'15','fx':'18300','file_type':'pdf'})
+    self.assertEqual(r2.status_code,200,r2.text[:200])
+    self.assertTrue(r2.content.startswith(b'%PDF-'))
+  finally:app.dependency_overrides.clear()
  def test_demo_preview(self):
   p=self.c.get('/api/demo',params={'margin':'15','fx':'18300'});self.assertEqual(p.status_code,200)
   self.assertEqual(len(p.json()['items']),3)
