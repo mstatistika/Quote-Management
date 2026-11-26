@@ -5,7 +5,9 @@ const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 const samples=[{sku:'DEMO-SKU-001',description:'Optical transponder sample',qty:2,cost:1000},{sku:'DEMO-SKU-002',description:'Pluggable module sample',qty:4,cost:250.5},{sku:'DEMO-SKU-003',description:'Chassis fan sample',qty:1,cost:85}];
 let demoState={total:0,valid:false};
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple';
+let token=null,realPreview=null,realMode='simple',pinRotationRequired=false;
+const validPin=value=>/^[0-9]{6}$/.test(value);
+const weakPin=value=>validPin(value)&&(new Set(value).size===1||[...value].every((c,i,a)=>i===0||Number(c)===Number(a[i-1])+1)||[...value].every((c,i,a)=>i===0||Number(c)===Number(a[i-1])-1));
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
@@ -17,6 +19,7 @@ function onFileSelected(){
   $('realUnconfigured').classList.add('hidden');
   $('realLogin').classList.add('hidden');
   $('realWorkspace').classList.add('hidden');
+  $('rPinSetup').classList.add('hidden');
   $('rError').textContent='';
   info.hidden=!selected;
   if(!selected) return;
@@ -26,6 +29,7 @@ function onFileSelected(){
     return;
   }
   if(!access.configured) $('realUnconfigured').classList.remove('hidden');
+  else if(token&&pinRotationRequired) $('rPinSetup').classList.remove('hidden');
   else if(token) $('realWorkspace').classList.remove('hidden');
   else $('realLogin').classList.remove('hidden');
 }
@@ -46,8 +50,58 @@ document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMo
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
 function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Upload original supplier .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
 async function remoteApi(path,fd){const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd,cache:'no-store'});if(!r.ok){const data=await r.json().catch(()=>({detail:'Permintaan gagal.'}));if([401,403].includes(r.status))token=null;throw Error(data.detail||'Validasi gagal.');}return r;}
-$('rLoginBtn').onclick=async()=>{const btn=$('rLoginBtn');btn.disabled=true;$('rLoginError').textContent='';try{if(!access.configured)throw Error('Autentikasi belum dikonfigurasi.');const r=await fetch(access.url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:access.publishable_key,'Content-Type':'application/json'},body:JSON.stringify({email:$('rEmail').value.trim(),password:$('rPassword').value})});const data=await r.json();if(!r.ok||!data.access_token)throw Error('Login gagal. Cek email/password dan izin akun.');token=data.access_token;$('rPassword').value='';$('realLogin').classList.add('hidden');$('realWorkspace').classList.remove('hidden');syncDemoBadge();}catch(e){$('rLoginError').textContent=e.message;}finally{btn.disabled=false;}};
-$('rLogout').onclick=()=>{token=null;syncDemoBadge();onFileSelected();};
+$('rLoginBtn').onclick=async()=>{
+  const btn=$('rLoginBtn');btn.disabled=true;$('rLoginError').textContent='';
+  try{
+    if(!access.configured)throw Error('Login belum dikonfigurasi.');
+    const email=$('rEmail').value.trim().toLowerCase();
+    const pin=$('rPin').value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!validPin(pin))throw Error('Isi email dan PIN 6 digit.');
+    const r=await fetch(access.url+'/auth/v1/token?grant_type=password',{
+      method:'POST',headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pin}),cache:'no-store'
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data.access_token)throw Error('Email atau PIN tidak valid, atau akun belum diaktifkan.');
+    token=data.access_token;
+    const authCheck=await fetch('/api/whoami',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    if(!authCheck.ok){
+      token=null;throw Error('Akun tidak terdaftar atau belum mendapat izin.');
+    }
+    $('rPin').value='';
+    pinRotationRequired=weakPin(pin);
+    $('realLogin').classList.add('hidden');
+    $('realWorkspace').classList.toggle('hidden',pinRotationRequired);
+    $('rPinSetup').classList.toggle('hidden',!pinRotationRequired);
+    syncDemoBadge();
+  }catch(e){$('rLoginError').textContent=e.message;}
+  finally{btn.disabled=false;}
+};
+$('rChangePinBtn').onclick=async()=>{
+  const btn=$('rChangePinBtn');btn.disabled=true;$('rPinChangeError').textContent='';
+  try{
+    if(!token||!pinRotationRequired)throw Error('Silakan masuk kembali.');
+    const next=$('rNewPin').value.trim();
+    if(!validPin(next)||weakPin(next))throw Error('Buat PIN 6 digit yang tidak berurutan atau berulang.');
+    if(next!==$('rConfirmPin').value.trim())throw Error('Konfirmasi PIN tidak sama.');
+    const r=await fetch(access.url+'/auth/v1/user',{
+      method:'PUT',headers:{apikey:access.publishable_key,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({password:next}),cache:'no-store'
+    });
+    if(!r.ok){const response=await r.json().catch(()=>({}));throw Error(response.msg||response.message||'Gagal mengubah PIN.');}
+    token=null;pinRotationRequired=false;
+    $('rNewPin').value='';$('rConfirmPin').value='';
+    $('rPinSetup').classList.add('hidden');
+    syncDemoBadge();onFileSelected();
+    $('rLoginError').textContent='PIN diperbarui. Silakan masuk kembali memakai PIN baru.';
+  }catch(e){$('rPinChangeError').textContent=e.message;}
+  finally{btn.disabled=false;}
+};
+$('rLogout').onclick=()=>{
+  token=null;pinRotationRequired=false;
+  $('rNewPin').value='';$('rConfirmPin').value='';
+  syncDemoBadge();onFileSelected();
+};
 $('rPreview').onclick=async()=>{const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';try{const r=await remoteApi('/api/preview',form());const p=await r.json();realPreview=p;$('rUsd').textContent=sf(p.total_usd);$('rIdr').textContent=rf(p.total_idr);$('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;$('rItems').replaceChildren(...p.items.map(i=>itemElement({sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd})));$('rResults').hidden=false;$('rAck').checked=false;$('rGenerate').disabled=true;}catch(e){invalidateReal();$('rError').textContent=e.message;}finally{btn.disabled=false;}};
 $('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
 $('rGenerate').onclick=async()=>{const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';try{if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');const fd=form();fd.append('format',$('rFormat').value);if($('rT01').files[0])fd.append('t01_master',$('rT01').files[0]);const meta={};if(realMode==='advanced')for(const [key] of metaNames){const v=$('meta_'+key).value.trim();if(v)meta[key]=v;}fd.append('details',JSON.stringify(meta));const r=await remoteApi('/api/generate',fd);const mime=r.headers.get('Content-Type')||'';const filename=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]||'QUOTE_DRAFT.'+(mime.includes('zip')?'zip':'xlsx');download(await r.blob(),filename);$('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';}catch(e){$('rError').textContent=e.message;}finally{btn.disabled=false;}};
