@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const sf=(v)=>'USD '+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0,pdfRequestEpoch=null;
+let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0,pdfRequestEpoch=null,pdfSequence=0,reviewMode="excel",mailReady=false,deliveryBusy=false;
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function renderMasterStatus(){
@@ -63,6 +63,7 @@ $('rFile').addEventListener('change',onFileSelected);
 function download(blob,name){const obj=URL.createObjectURL(blob),a=document.createElement('a');a.href=obj;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),20000);}
 function switchRealMode(mode){realMode=mode;document.querySelectorAll('[data-r-mode]').forEach(b=>b.classList.toggle('active',b.dataset.rMode===mode));$('rAdvanced').style.display=mode==='advanced'?'block':'none';invalidateReal();}
 function clearPdfPreview(){
+  pdfSequence+=1;pdfRequestEpoch=null;
   if(pdfObjectUrl){URL.revokeObjectURL(pdfObjectUrl);pdfObjectUrl=null;}
   $('rPdfFrame').removeAttribute('src');
   $('rPdfFrame').hidden=true;
@@ -75,6 +76,8 @@ function invalidateReal(){
   renderMasterStatus();
   $('rAck').checked=false;
   $('rGenerate').disabled=true;
+  $('rSendEmail').disabled=true;
+  $('rDeliveryStatus').hidden=true;
 }
 document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMode(b.dataset.rMode));
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
@@ -88,7 +91,7 @@ $('rLoginBtn').onclick=async()=>{
     if(!access.configured)throw Error('Login belum dikonfigurasi.');
     const email=$('rEmail').value;
     const password=$('rPassword').value;
-    if(!email || !password)throw Error('Pilih email dan masukkan password.');
+    if(!email || !password)throw Error('Pilih user dan masukkan password.');
     const r=await fetch(access.url+'/auth/v1/token?grant_type=password',{
       method:'POST',
       headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
@@ -96,7 +99,7 @@ $('rLoginBtn').onclick=async()=>{
       cache:'no-store'
     });
     const data=await r.json().catch(()=>({}));
-    if(!r.ok||!data.access_token)throw Error('Email atau password salah.');
+    if(!r.ok||!data.access_token)throw Error('User atau password salah.');
     token=data.access_token;
     const authCheck=await fetch('/api/whoami',{
       headers:{Authorization:'Bearer '+token},
@@ -150,7 +153,7 @@ function snapshotTable(items,doc){
   items.forEach((item,index)=>{
     if(doc.omitted&&index===doc.first_count){
       const skipped=docNode('tr','preview-skipped-row');
-      const cell=docNode('td','',`… ${doc.omitted} baris item di tengah tidak ditampilkan dalam cuplikan. Semuanya ikut divalidasi.`);
+      const cell=docNode('td','',`… ${doc.omitted} item tidak ditampilkan.`);
       cell.colSpan=5;skipped.append(cell);body.append(skipped);
     }
     const row=docNode('tr','quote-item-line status-'+String(item.status||'').toLowerCase());
@@ -171,7 +174,7 @@ function metaField(label,v){
   return cell;
 }
 function renderDocumentPreview(nodeId,doc){
-  if(!doc)throw Error('Cuplikan visual Excel tidak diterima dari server.');
+  if(!doc)throw Error('Preview Excel tidak tersedia.');
   const container=$(nodeId);
   const paper=docNode('div','quote-paper-inner');
   const header=docNode('div','quote-paper-letterhead');
@@ -201,10 +204,10 @@ function renderDocumentPreview(nodeId,doc){
     ['Project',doc.meta.project]
   ].forEach(([label,v])=>metadata.append(metaField(label,v)));
   paper.append(metadata);
-  const caption=docNode('div','quote-line-caption',doc.item_count+' item · Cuplikan hasil '+doc.template);
+  const caption=docNode('div','quote-line-caption',doc.item_count+' item');
   paper.append(caption,snapshotTable(doc.items||[],doc));
   const totals=docNode('div','quote-paper-totals');
-  totals.append(docNode('span','',doc.original?'TOTAL PADA FILE ASLI':'TOTAL HASIL GENERATOR'));
+  totals.append(docNode('span','','TOTAL'));
   const amount=docNode('strong','',moneyText(doc.total)+' USD');
   if(String(doc.total||'').startsWith('#')){
     amount.classList.add('quote-cell-error');
@@ -217,15 +220,12 @@ function renderDocumentPreview(nodeId,doc){
     .forEach(([label,v])=>{if(v&&String(v).trim())terms.append(metaField(label,v));});
   if(terms.children.length===1)terms.append(docNode('span','quote-field-value','Commercial terms: to be confirmed'));
   paper.append(terms);
-  paper.append(docNode('div','quote-paper-footnote',
-    doc.original?'Cuplikan read-only dari file yang di-upload · tanpa perubahan.'
-                :'Cuplikan read-only dari file XLSX hasil generator · DRAFT perlu review.'));
   container.replaceChildren(paper);
 }
 function renderComparison(c){
-  if(!c||!c.draft_document)throw Error('Preview quotation hasil generator belum tersedia.');
+  if(!c||!c.draft_document)throw Error('Preview quotation belum tersedia.');
   const stats=c.summary;
-  $('rDraftTitle').textContent='Quotation hasil generator · '+c.draft_label;
+  $('rDraftTitle').textContent='Quotation · '+c.draft_label;
   renderDocumentPreview('rDraftDocument',c.draft_document);
   const checks=[
     ['SKU cocok',stats.sku_matches+'/'+stats.rows],
@@ -247,6 +247,7 @@ function renderComparison(c){
   wrap.replaceChildren(...nodes);
 }
 function showReviewMode(mode){
+  reviewMode=mode;
   const excel=mode==='excel';
   $('rShowExcel').classList.toggle('active',excel);
   $('rShowPdf').classList.toggle('active',!excel);
@@ -258,6 +259,7 @@ function showReviewMode(mode){
 }
 $('rShowExcel').onclick=()=>showReviewMode('excel');
 $('rShowPdf').onclick=()=>showReviewMode('pdf');
+$('rPreviewFormat').onchange=()=>{if(!realPreview)return;clearPdfPreview();renderComparison(realPreview.comparisons[$('rPreviewFormat').value]);showReviewMode(reviewMode);};
 
 function collectDetails(){
   const meta={};
@@ -269,36 +271,38 @@ function collectDetails(){
   }
   return meta;
 }
-function pdfForm(){
+function pdfForm(format=$('rFormat').value){
   const fd=form();
-  fd.append('format',$('rFormat').value);
+  fd.append('format',format);
   fd.append('details',JSON.stringify(collectDetails()));
   return fd;
 }
 async function refreshPdfPreview(){
-  if(!realPreview||pdfRequestEpoch===previewEpoch)return;
+  if(!realPreview||pdfRequestEpoch!==null)return;
   const epoch=previewEpoch;
-  pdfRequestEpoch=epoch;
+  clearPdfPreview();
+  const sequence=pdfSequence;
+  pdfRequestEpoch=sequence;
   $('rPreviewMessage').textContent='Menyiapkan preview…';
   $('rPreviewMessage').hidden=false;
-  clearPdfPreview();
   try{
-    const r=await remoteApi('/api/pdf-preview',pdfForm());
+    const selected=$('rFormat').value==='BOTH'?$('rPreviewFormat').value:$('rFormat').value;
+    const r=await remoteApi('/api/pdf-preview',pdfForm(selected));
     const blob=await r.blob();
-    if(epoch!==previewEpoch)return;
+    if(epoch!==previewEpoch||sequence!==pdfSequence)return;
     if(blob.type!=='application/pdf'||!blob.size)throw Error('Preview bukan file PDF yang valid.');
     pdfObjectUrl=URL.createObjectURL(blob);
     $('rPdfFrame').src=pdfObjectUrl+'#page=1&view=FitH';
     $('rPdfFrame').hidden=false;
     $('rPreviewMessage').textContent='';
     $('rPreviewMessage').hidden=true;
-    $('rPdfFrame').title=$('rFormat').value==='BOTH'?'Preview PDF CommVerge; unduhan ZIP berisi kedua format':'Preview PDF quotation A4';
+    $('rPdfFrame').title='Preview PDF '+(selected==='T01'?'CommVerge':'Smartoptics');
   }catch(e){
-    if(epoch===previewEpoch){
+    if(epoch===previewEpoch&&sequence===pdfSequence){
       $('rPreviewMessage').textContent='Preview PDF belum tersedia: '+e.message;
       $('rPreviewMessage').hidden=false;
     }
-  }finally{if(pdfRequestEpoch===epoch)pdfRequestEpoch=null;}
+  }finally{if(pdfRequestEpoch===sequence)pdfRequestEpoch=null;}
 }
 $('rPreview').onclick=async()=>{
   const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';
@@ -317,6 +321,8 @@ $('rPreview').onclick=async()=>{
     for(const opt of $('rFormat').options)opt.disabled=false;
     renderMasterStatus();
     updateDownloadLabel();
+    $('rPreviewFormat').hidden=$('rFormat').value!=='BOTH';
+    $('rPreviewFormat').value='T01';
     renderComparison(p.comparison);
     showReviewMode('excel');
     $('rResults').hidden=false;
@@ -325,17 +331,19 @@ $('rPreview').onclick=async()=>{
   }catch(e){invalidateReal();$('rError').textContent=e.message;}
   finally{btn.disabled=false;}
 };
-$('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
+function syncDelivery(){const disabled=deliveryBusy||!$('rAck').checked||!realPreview;$('rGenerate').disabled=disabled;$('rSendEmail').disabled=disabled||!mailReady;}
+$('rAck').onchange=syncDelivery;
 function updateDownloadLabel(){
   const fmt=$('rExportType').value;
   const both=$('rFormat').value==='BOTH';
-  $('rGenerate').textContent=fmt==='pdf'
-    ?'↓ Download '+(both?'ZIP PDF':'PDF A4')+' DRAFT'
-    :'↓ Download '+(both?'ZIP Excel':'Excel')+' DRAFT';
+  $('rGenerate').textContent=fmt==='pdf'?'Download PDF':'Download Excel';
+  $('rGenerate').title=both?'Download kedua quotation dalam ZIP':'Download quotation';
+  $('rSendEmail').title=mailReady?'Kirim file ke user yang login':'Email Collective Revivers belum dikonfigurasi';
+  syncDelivery();
 }
 $('rExportType').onchange=updateDownloadLabel;
 $('rGenerate').onclick=async()=>{
-  const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';
+  if(deliveryBusy)return;deliveryBusy=true;syncDelivery();$('rError').textContent='';
   try{
     if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');
     const fd=pdfForm();
@@ -347,10 +355,21 @@ $('rGenerate').onclick=async()=>{
     download(await r.blob(),filename);
     $('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';
   }catch(e){$('rError').textContent=e.message;}
-  finally{btn.disabled=false;updateDownloadLabel();}
+  finally{deliveryBusy=false;updateDownloadLabel();}
+};
+$('rSendEmail').onclick=async()=>{
+  if(deliveryBusy||!realPreview||!$('rAck').checked||!mailReady)return;
+  deliveryBusy=true;syncDelivery();
+  const status=$('rDeliveryStatus');status.hidden=false;status.textContent='Mengirim email…';
+  try{
+    const fd=pdfForm();fd.append('file_type',$('rExportType').value);fd.append('reviewed','true');
+    const response=await remoteApi('/api/send-email',fd);const result=await response.json();
+    status.textContent=result.sent?'Email berhasil dikirim ke user yang login.':'Pengiriman belum terkonfirmasi.';
+  }catch(e){status.textContent=e.message;}
+  finally{deliveryBusy=false;syncDelivery();}
 };
 ['rMargin','rFx'].forEach(id=>$(id).oninput=invalidateReal);
 $('rFormat').onchange=()=>{invalidateReal();renderMasterStatus();updateDownloadLabel();};
 async function init(){switchRealMode('simple');renderMasterStatus();updateDownloadLabel();
-try{const status=await(await fetch('/api/status')).json();$('statustag').textContent=status.real_processing_enabled?'Siap':'Terbatas';const cfg=await(await fetch('/api/auth-config')).json();access=cfg;onFileSelected();}catch(e){$('statustag').textContent='Offline';onFileSelected();}}
+try{const status=await(await fetch('/api/status')).json();mailReady=Boolean(status.email_ready);updateDownloadLabel();$('statustag').textContent=status.real_processing_enabled?'Siap':'Terbatas';const cfg=await(await fetch('/api/auth-config')).json();access=cfg;onFileSelected();}catch(e){$('statustag').textContent='Offline';onFileSelected();}}
 init();

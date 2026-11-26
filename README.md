@@ -1,4 +1,4 @@
-# Quote Generator — v2.3.4
+# Quote Generator — v2.3.5
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
@@ -60,3 +60,5 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 Preview v2.3.3 stays within the generator container; on desktop its height follows the QA card, with internal scrolling. The existing CR logo is left aligned and the title right aligned.
 
 Version 2.3.4: PDF preview removes redundant success copy and manual refresh; loading and error messages remain. Review consent precedes the compact total/download row.
+
+Version 2.3.5: both output formats can be previewed independently in Excel and PDF. Email delivery is opt-in and uses the authenticated user's verified address. Configure CR_GMAIL_APP_PASSWORD in server environment after confirming the Collective Revivers sender address; do not commit credentials. Email is disabled without this setting. No automatic sending.

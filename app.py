@@ -8,6 +8,10 @@ import json
 import os
 import re
 import zipfile
+import smtplib
+import ssl
+import asyncio
+from email.message import EmailMessage
 from pathlib import Path
 from urllib.parse import urlparse
 from decimal import Decimal, ROUND_HALF_UP
@@ -86,7 +90,7 @@ def today():return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().is
 @app.get('/api/status')
 async def status():
     url,key,allow=auth_conf()
-    return {'version':'2.3.4','state':'PREVIEW','output_format_independent':True,'bidirectional_generation_enabled':True,'excel_comparison_enabled':True,'visual_document_preview_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
+    return {'version':'2.3.5','email_ready':bool(os.environ.get('CR_GMAIL_APP_PASSWORD','').strip()),'state':'PREVIEW','output_format_independent':True,'bidirectional_generation_enabled':True,'excel_comparison_enabled':True,'visual_document_preview_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
             'commverge_prepriced_supported':True,
             't01_master_ready':None,'t01_master_location':'private_supabase_storage',
             't02_uses_original_source':True,'real_processing_enabled':bool(url and real_processing_ready()),'today':today()}
@@ -206,6 +210,8 @@ async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=F
         result['format_auto_selected']=False
         result['format_notice']=('Input CommVerge sudah berharga jual: harga dipertahankan tanpa margin tambahan.' if result['source_type']=='commverge_prepriced' else '')
         result['comparison']=compare_workbooks(raw,format,margin,fx,details,master)
+        if format=='BOTH':
+            result['comparisons']={'T01':result['comparison'],'T02':compare_workbooks(raw,'T02',margin,fx,details,None)}
         return result
     except Exception as e:safe_error(e)
 
@@ -231,6 +237,36 @@ async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=
             raise QuoteError('Tipe output harus XLSX atau PDF.')
     except Exception as e:safe_error(e)
     return Response(data,media_type=mime,headers={'Content-Disposition':f'attachment; filename="{name}"','X-Quotation-Status':'DRAFT-REVIEW-REQUIRED'})
+
+CR_SENDER='collectiverevivers@gmail.com'
+
+def smtp_send(recipient,name,data,mime,password):
+    msg=EmailMessage()
+    msg['From']=f'Collective Revivers <{CR_SENDER}>'
+    msg['To']=recipient
+    msg['Subject']='Quotation DRAFT'
+    msg.set_content('Terlampir quotation DRAFT untuk review internal. Mohon periksa sebelum dikirim kepada customer.')
+    main,sub=mime.split('/',1)
+    msg.add_attachment(data,maintype=main,subtype=sub,filename=name)
+    with smtplib.SMTP_SSL('smtp.gmail.com',465,timeout=15,context=ssl.create_default_context()) as smtp:
+        smtp.login(CR_SENDER,password)
+        refused=smtp.send_message(msg)
+        if refused:raise RuntimeError('Recipient rejected')
+
+@app.post('/api/send-email')
+async def send_quote_email(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),file_type:str=Form('xlsx'),reviewed:bool=Form(False),user:dict=Depends(permitted)):
+    if not reviewed:raise HTTPException(422,'Review quotation terlebih dahulu.')
+    password=os.environ.get('CR_GMAIL_APP_PASSWORD','').strip().replace(' ','')
+    if not password:raise HTTPException(503,'Email Collective Revivers belum dikonfigurasi.')
+    response=await real_generate(quote=quote,margin=margin,fx=fx,format=format,details=details,file_type=file_type,user=user)
+    data=response.body
+    if len(data)>18*1024*1024:raise HTTPException(413,'Lampiran terlalu besar untuk email.')
+    name=response.headers['content-disposition'].split('filename="',1)[-1].rstrip('"')
+    try:
+        await asyncio.to_thread(smtp_send,user['email'],name,data,response.media_type,password)
+    except Exception:
+        raise HTTPException(502,'Pengiriman email belum terkonfirmasi. Periksa inbox sebelum mencoba lagi.')
+    return {'sent':True}
 
 @app.post('/api/pdf-preview')
 async def pdf_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),user:dict=Depends(permitted)):

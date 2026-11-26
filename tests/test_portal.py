@@ -66,6 +66,12 @@ class PortalTests(unittest.TestCase):
   self.assertLess(r.text.index('id="rUsd"'),r.text.index('id="rGenerate"'))
   self.assertNotIn('id="rRefreshPdf"',r.text)
   self.assertNotIn('rRefreshPdf',self.c.get('/static/app.js').text)
+  self.assertIn('id="rSendEmail"',r.text)
+  self.assertIn('id="rPreviewFormat"',r.text)
+  self.assertIn('>Michael</option>',r.text)
+  self.assertIn('>Daniel</option>',r.text)
+  self.assertNotIn('Cuplikan hasil',self.c.get('/static/app.js').text)
+  self.assertIn('Collective Revivers</span>',r.text)
  def test_real_requires_auth(self):
   r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
   r=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
