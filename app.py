@@ -17,6 +17,7 @@ from fastapi import FastAPI, Depends, Header, File, UploadFile, HTTPException, F
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pdf_export import generate_pdf
+from preview_compare import compare_workbooks
 from quote_engine import (QuoteError, preview, generate, settings, metadata, source,
     sheet_and_shared, setval, pack, workbook, decimal, amount, round2, qa_export, MAX_UPLOAD)
 
@@ -183,10 +184,21 @@ async def read_quote(file:UploadFile):
     return buf
 
 @app.post('/api/preview')
-async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),user:dict=Depends(permitted)):
+async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),user:dict=Depends(permitted)):
     if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
     raw=await read_quote(quote)
-    try:return preview(raw,margin,fx)
+    try:
+        result=preview(raw,margin,fx)
+        master=None
+        if format in ('T01','BOTH'):
+            if result['source_type']=='commverge_prepriced':
+                master=raw
+            else:
+                master=await private_t01_master(user['access_token'])
+                if master is None:
+                    raise QuoteError('Master CommVerge T01 belum tersedia; pilih Smartoptics (T02) atau minta admin memasang master.')
+        result['comparison']=compare_workbooks(raw,format,margin,fx,details,master)
+        return result
     except Exception as e:safe_error(e)
 
 @app.post('/api/generate')
