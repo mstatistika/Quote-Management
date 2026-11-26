@@ -8,20 +8,18 @@ Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Ver
 - `uvicorn app:app --reload --port 8000`
 - Open `http://127.0.0.1:8000`. The public page has an **interactive synthetic-only demo**; margin and USD/IDR FX drive Excel sample exports.
 
-## Login email + PIN (deployment staged)
+## Login pengguna
 
-The UI accepts **email + a six-digit numeric PIN**; the PIN is sent to Supabase Auth as a password over HTTPS. PINs are **never hardcoded, stored in this repository, or returned to the client by the server**. Access to supplier quotations requires a live Supabase Auth session, a verified email address, and a matching server-side `ALLOWED_EMAILS` entry.
+Select Michael or Daniel from the email dropdown, enter the account's existing password, then sign in. No mandatory password/PIN rotation and no OTP in the MVP. Future password management can be added to a user menu.
 
-**Bootstrap policy:** Any predictable shared PIN is widely guessable. Treat such values as temporary setup credentials **only**, never as production secrets. When the portal detects a repeated or sequential PIN it requires rotation to a different six-digit PIN before showing the quotation form. This client-side rotation alone is not an authorization boundary; the backend therefore keeps preview/generate **disabled by default** using `ENABLE_REAL_QUOTATIONS=false` until the two approved users' PINs are changed and reviewed.
+Credentials are **not** embedded in source code. The browser sends them to Supabase Auth over HTTPS. Every supplier Excel preview and generate request requires a verified Supabase Auth session and a server-side `ALLOWED_EMAILS` match; public signup should remain disabled.
 
-Provision a **separate** Supabase project (do not reuse General Booking or other MS Statistika projects), disable public signup, and create only approved and confirmed accounts in Auth > Users. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `ALLOWED_EMAILS` in the Quote Management Vercel project settings, never in GitHub. Initially retain `ENABLE_REAL_QUOTATIONS=false`. Verify server authorization, invalid/unknown email rejection, PIN rotation, unauthorized preview/generate rejection and end-to-end XLSX output. Only then switch `ENABLE_REAL_QUOTATIONS=true` and redeploy.
-
-Six-digit PINs have a limited keyspace: for a stronger production service, prefer longer credentials or an additional factor and enforce Supabase rate limits / bot protection. **Never leave a predictable bootstrap PIN active as a production PIN.** The live processing feature remains disabled until verified.
+The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Authenticated processing becomes available when the three Supabase configuration variables are present and the account passes server authorization. Password `123456` is trivially guessable; replace it with a stronger individual password through the future user settings flow. Supabase rate limiting and login-abuse monitoring are recommended.
 
 ## Production architecture
 
 - **DEMO**: synthetic pricing and synthetic sample XLSX/ZIP; no supplier files or real quotation metadata.
-- **REAL (disabled until configured)**: Supabase Auth verified server-side, with explicit `ALLOWED_EMAILS` allowlist. Needs a **separate Supabase project**; no secrets in this repository.
+- **REAL (requires configured Auth)**: Supabase Auth verified server-side, with explicit `ALLOWED_EMAILS` allowlist. Needs a **separate Supabase project**; no secrets in this repository.
 - **Original supplier XLSX**: authenticated upload, parsed in-memory, checked against Smartoptics Detailed Quote anchors, pricing gross margin (not markup), anti-double-margin, QA, download DRAFT only.
 - **T02 output**: preserves supplier's Smartoptics original workbook; marked DRAFT not supplier-issued.
 - **T01 output**: requires original approved CommVerge template, provided via **private upload at generation time**. The original branded master is **not included in this public repository**. Uploads are processed in-memory and not persisted.
@@ -44,5 +42,5 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 
 - Source adapter currently supports the original Smartoptics Detailed Quote structure only.
 - T01 master must be provided separately and rights to use its brand/template must be confirmed by the issuer.
-- Demo is **not** equivalent to successful authenticated end-to-end verification; live testing awaits Supabase and Vercel configuration.
+- Demo is **not** equivalent to successful authenticated end-to-end verification; real supplier XLSX output still requires live QA.
 - No built-in pricing/tax assumptions beyond explicitly entered margin and FX.
