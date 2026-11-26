@@ -85,7 +85,7 @@ def today():return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().is
 async def status():
     url,key,allow=auth_conf()
     return {'version':'2.1.0','state':'PREVIEW','demo_ready':True,'real_auth_configured':bool(url),
-            't01_master_ready':(ROOT/'private/T01_MASTER_CLEAN.xlsx').is_file(),
+            't01_master_ready':None,'t01_master_location':'private_supabase_storage',
             't02_uses_original_source':True,'real_processing_enabled':bool(url and real_processing_ready()),'today':today()}
 
 @app.get('/api/whoami')
