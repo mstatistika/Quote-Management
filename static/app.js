@@ -12,10 +12,10 @@ function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
 syncDemoBadge();
 function renderMasterStatus(){
   const info=$('rMasterStatus');
-  info.hidden=$('rFormat').value==='T02';
+  info.hidden=$('rFormat').value==='T02' || !realPreview || realPreview.source_type==='commverge_prepriced';
   if(info.hidden)return;
   if(masterReady===true){
-    info.textContent='Master CommVerge T01 sudah tersedia di server privat. Tidak perlu upload template lagi.';
+    info.textContent='Master CommVerge T01 tersedia di penyimpanan privat.';
     info.classList.remove('error');
   }else if(masterReady===false){
     info.textContent='Master CommVerge T01 belum terpasang di server privat. Hubungi admin; Smartoptics (T02) tetap bisa digunakan.';
@@ -44,6 +44,8 @@ async function checkPrivateMaster(){
 }
 function onFileSelected(){
   invalidateReal();
+  $('rMargin').disabled=false;
+  for(const option of $('rFormat').options)option.disabled=false;
   const selected=$('rFile').files[0];
   const info=$('selectedFileInfo');
   $('realUnconfigured').classList.add('hidden');
@@ -83,12 +85,13 @@ function invalidateReal(){
   clearPdfPreview();
   realPreview=null;
   $('rResults').hidden=true;
+  renderMasterStatus();
   $('rAck').checked=false;
   $('rGenerate').disabled=true;
 }
 document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMode(b.dataset.rMode));
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
-function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Upload original supplier .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
+function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Pilih Excel quotation .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
 async function remoteApi(path,fd){const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd,cache:'no-store'});if(!r.ok){const data=await r.json().catch(()=>({detail:'Permintaan gagal.'}));if([401,403].includes(r.status))token=null;throw Error(data.detail||'Validasi gagal.');}return r;}
 $('rLoginBtn').onclick=async()=>{
   const btn=$('rLoginBtn');
@@ -183,7 +186,17 @@ $('rPreview').onclick=async()=>{
     realPreview=p;
     $('rUsd').textContent=sf(p.total_usd);
     $('rIdr').textContent=rf(p.total_idr);
-    $('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;
+    const prepriced=p.source_type==='commverge_prepriced';
+    $('rMargin').disabled=prepriced;
+    for(const opt of $('rFormat').options)opt.disabled=prepriced&&opt.value!=='T01';
+    if(prepriced)$('rFormat').value='T01';
+    renderMasterStatus();
+    updateDownloadLabel();
+    $('rResultInfo').textContent=prepriced
+      ?`${p.item_count} item · Harga jual existing dipertahankan · ${p.recomputed_subtotals} subtotal diperbaiki (QTY × harga unit) · DRAFT wajib review. Margin tambahan tidak diterapkan.`
+      :`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;
+    $('rPricingNote').textContent=p.price_note||'';
+    $('rPricingNote').hidden=!p.price_note;
     $('rItems').replaceChildren(...p.items.map(i=>itemElement({
       sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd
     })));
