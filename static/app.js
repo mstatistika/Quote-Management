@@ -5,9 +5,7 @@ const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 const samples=[{sku:'DEMO-SKU-001',description:'Optical transponder sample',qty:2,cost:1000},{sku:'DEMO-SKU-002',description:'Pluggable module sample',qty:4,cost:250.5},{sku:'DEMO-SKU-003',description:'Chassis fan sample',qty:1,cost:85}];
 let demoState={total:0,valid:false};
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple',pinRotationRequired=false;
-const validPin=value=>/^[0-9]{6}$/.test(value);
-const weakPin=value=>validPin(value)&&(new Set(value).size===1||[...value].every((c,i,a)=>i===0||Number(c)===Number(a[i-1])+1)||[...value].every((c,i,a)=>i===0||Number(c)===Number(a[i-1])-1));
+let token=null,realPreview=null,realMode='simple';
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
@@ -19,7 +17,6 @@ function onFileSelected(){
   $('realUnconfigured').classList.add('hidden');
   $('realLogin').classList.add('hidden');
   $('realWorkspace').classList.add('hidden');
-  $('rPinSetup').classList.add('hidden');
   $('rError').textContent='';
   info.hidden=!selected;
   if(!selected) return;
@@ -29,7 +26,6 @@ function onFileSelected(){
     return;
   }
   if(!access.configured) $('realUnconfigured').classList.remove('hidden');
-  else if(token&&pinRotationRequired) $('rPinSetup').classList.remove('hidden');
   else if(token) $('realWorkspace').classList.remove('hidden');
   else $('realLogin').classList.remove('hidden');
 }
@@ -51,91 +47,47 @@ for(const [key,label] of metaNames){const el=document.createElement('label');el.
 function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Upload original supplier .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
 async function remoteApi(path,fd){const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd,cache:'no-store'});if(!r.ok){const data=await r.json().catch(()=>({detail:'Permintaan gagal.'}));if([401,403].includes(r.status))token=null;throw Error(data.detail||'Validasi gagal.');}return r;}
 $('rLoginBtn').onclick=async()=>{
-  const btn=$('rLoginBtn');btn.disabled=true;$('rLoginError').textContent='';
+  const btn=$('rLoginBtn');
+  btn.disabled=true;
+  $('rLoginError').textContent='';
   try{
     if(!access.configured)throw Error('Login belum dikonfigurasi.');
-    const email=$('rEmail').value.trim().toLowerCase();
-    const pin=$('rPin').value.trim();
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!validPin(pin))throw Error('Isi email dan PIN 6 digit.');
+    const email=$('rEmail').value;
+    const password=$('rPassword').value;
+    if(!email || !password)throw Error('Pilih email dan masukkan password.');
     const r=await fetch(access.url+'/auth/v1/token?grant_type=password',{
-      method:'POST',headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pin}),cache:'no-store'
+      method:'POST',
+      headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password}),
+      cache:'no-store'
     });
     const data=await r.json().catch(()=>({}));
-    if(!r.ok||!data.access_token)throw Error('Email atau PIN tidak valid, atau akun belum diaktifkan.');
+    if(!r.ok||!data.access_token)throw Error('Email atau password salah.');
     token=data.access_token;
-    const authCheck=await fetch('/api/whoami',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const authCheck=await fetch('/api/whoami',{
+      headers:{Authorization:'Bearer '+token},
+      cache:'no-store'
+    });
     if(!authCheck.ok){
-      token=null;throw Error('Akun tidak terdaftar atau belum mendapat izin.');
+      token=null;
+      throw Error('Akun tidak diizinkan mengakses quotation.');
     }
-    $('rPin').value='';
-    pinRotationRequired=weakPin(pin);
+    $('rPassword').value='';
     $('realLogin').classList.add('hidden');
-    $('realWorkspace').classList.toggle('hidden',pinRotationRequired);
-    $('rPinSetup').classList.toggle('hidden',!pinRotationRequired);
-    syncDemoBadge();
-  }catch(e){$('rLoginError').textContent=e.message;}
-  finally{btn.disabled=false;}
-};
-$('rChangePinBtn').onclick=async()=>{
-  const btn=$('rChangePinBtn');btn.disabled=true;$('rPinChangeError').textContent='';
-  let passwordChanged=false;
-  try{
-    if(!token||!pinRotationRequired)throw Error('Sesi kedaluwarsa. Silakan masuk kembali.');
-    const next=$('rNewPin').value.trim();
-    const confirmation=$('rConfirmPin').value.trim();
-    if(!validPin(next))throw Error('PIN baru wajib berisi tepat 6 angka.');
-    if(weakPin(next))throw Error('PIN terlalu mudah ditebak. Hindari angka berurutan atau semuanya sama (misalnya 123456 atau 111111).');
-    if(next!==confirmation)throw Error('Kedua PIN berbeda. Periksa kembali kolom konfirmasi.');
-    btn.textContent='Menyimpan PIN…';
-    const r=await fetch(access.url+'/auth/v1/user',{
-      method:'PUT',headers:{apikey:access.publishable_key,Authorization:'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({password:next}),cache:'no-store'
-    });
-    if(!r.ok){
-      const response=await r.json().catch(()=>({}));
-      throw Error(response.msg||response.message||response.error_description||'Gagal menyimpan PIN. Periksa kebijakan password Supabase.');
-    }
-    passwordChanged=true;
-    // Refresh the session using the NEW PIN; never keep relying on a possibly revoked old session.
-    const signin=await fetch(access.url+'/auth/v1/token?grant_type=password',{
-      method:'POST',headers:{apikey:access.publishable_key,'Content-Type':'application/json'},
-      body:JSON.stringify({email:$('rEmail').value.trim().toLowerCase(),password:next}),cache:'no-store'
-    });
-    const session=await signin.json().catch(()=>({}));
-    if(!signin.ok||!session.access_token)throw Error('PIN sudah tersimpan, tetapi sesi baru belum aktif.');
-    token=session.access_token;
-    const check=await fetch('/api/whoami',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-    if(!check.ok)throw Error('PIN sudah tersimpan, tetapi izin sesi perlu diverifikasi ulang.');
-    pinRotationRequired=false;
-    $('rNewPin').value='';$('rConfirmPin').value='';
-    $('rPinSetup').classList.add('hidden');
     $('realWorkspace').classList.remove('hidden');
-    $('rError').textContent='PIN baru tersimpan. Login berhasil. Lanjutkan pengaturan quotation.';
     syncDemoBadge();
     $('realWorkspace').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
-    if(passwordChanged){
-      token=null;pinRotationRequired=false;
-      $('rNewPin').value='';$('rConfirmPin').value='';
-      $('rPinSetup').classList.add('hidden');
-      $('realWorkspace').classList.add('hidden');
-      $('realLogin').classList.remove('hidden');
-      $('rPin').value='';
-      syncDemoBadge();
-      $('rLoginError').textContent='PIN baru berhasil disimpan. Silakan masuk menggunakan PIN baru.';
-      $('realLogin').scrollIntoView({behavior:'smooth',block:'start'});
-    }else{
-      $('rPinChangeError').textContent=e.message;
-    }
+    $('rLoginError').textContent=e.message;
   }finally{
-    btn.disabled=false;btn.textContent='Simpan PIN baru';
+    btn.disabled=false;
   }
 };
 $('rLogout').onclick=()=>{
-  token=null;pinRotationRequired=false;
-  $('rNewPin').value='';$('rConfirmPin').value='';
-  syncDemoBadge();onFileSelected();
+  token=null;
+  $('rPassword').value='';
+  syncDemoBadge();
+  onFileSelected();
 };
 $('rPreview').onclick=async()=>{const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';try{const r=await remoteApi('/api/preview',form());const p=await r.json();realPreview=p;$('rUsd').textContent=sf(p.total_usd);$('rIdr').textContent=rf(p.total_idr);$('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;$('rItems').replaceChildren(...p.items.map(i=>itemElement({sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd})));$('rResults').hidden=false;$('rAck').checked=false;$('rGenerate').disabled=true;}catch(e){invalidateReal();$('rError').textContent=e.message;}finally{btn.disabled=false;}};
 $('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
