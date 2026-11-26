@@ -20,6 +20,8 @@ from quote_engine import (QuoteError, preview, generate, settings, metadata, sou
     sheet_and_shared, setval, pack, workbook, decimal, amount, round2, qa_export, MAX_UPLOAD)
 
 ROOT=Path(__file__).resolve().parent
+T01_PRIVATE_BUCKET='qms-templates'
+T01_PRIVATE_PATH='T01_MASTER_CLEAN.xlsx'
 app=FastAPI(title='Daniel Quotation Portal',docs_url=None,redoc_url=None,openapi_url=None)
 
 @app.middleware('http')
@@ -59,7 +61,7 @@ async def permitted(authorization: str|None=Header(None)):
     email=(user.get('email') or '').strip().lower()
     if email not in allow or not user.get('email_confirmed_at') or not user.get('id'):
         raise HTTPException(403,'Akun tidak memiliki izin memakai quotation supplier asli.')
-    return {'id':user['id'],'email':email}
+    return {'id':user['id'],'email':email,'access_token':token}
 
 def safe_error(e):
     if isinstance(e,QuoteError):raise HTTPException(422,str(e))
@@ -101,6 +103,43 @@ def real_processing_ready():
 async def auth_config():
     url,key,_=auth_conf()
     return {'configured':bool(url),'url':url or '', 'publishable_key':key or ''}
+
+async def private_t01_master(access_token:str):
+    """Fetch the reusable branded template from private Supabase Storage.
+    A user-scoped JWT, not the service-role key, authorizes every download.
+    """
+    url,key,_=auth_conf()
+    if not url:raise HTTPException(503,'Login untuk template belum dikonfigurasi.')
+    path=f'{url}/storage/v1/object/authenticated/{T01_PRIVATE_BUCKET}/{T01_PRIVATE_PATH}'
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            async with client.stream('GET',path,headers={
+                'apikey':key,'Authorization':'Bearer '+access_token,
+                'Accept':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            }) as resp:
+                if resp.status_code==404:return None
+                if resp.status_code in (401,403):
+                    raise HTTPException(403,'Akses template CommVerge ditolak.')
+                if resp.status_code!=200:
+                    raise HTTPException(503,'Penyimpanan master CommVerge sedang tidak tersedia.')
+                chunks=[]
+                size=0
+                async for chunk in resp.aiter_bytes():
+                    size+=len(chunk)
+                    if size>MAX_UPLOAD:raise HTTPException(413,'Master CommVerge melebihi 8 MB.')
+                    chunks.append(chunk)
+    except HTTPException:raise
+    except httpx.HTTPError:
+        raise HTTPException(503,'Koneksi penyimpanan master CommVerge gagal.')
+    raw=b''.join(chunks)
+    if not raw.startswith(b'PK') or len(raw)<200:
+        raise HTTPException(422,'Master CommVerge di storage bukan file XLSX valid.')
+    return raw
+
+@app.get('/api/master-status')
+async def master_status(user:dict=Depends(permitted)):
+    master=await private_t01_master(user['access_token'])
+    return {'t01_ready':master is not None,'storage':'private','requires_user_upload':False}
 
 @app.get('/api/demo')
 async def get_demo(margin:float=15,fx:int=18300):
@@ -149,18 +188,15 @@ async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=F
     except Exception as e:safe_error(e)
 
 @app.post('/api/generate')
-async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),t01_master:UploadFile|None=File(None),user:dict=Depends(permitted)):
+async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Form('18300'),format:str=Form('T01'),details:str=Form('{}'),user:dict=Depends(permitted)):
     if not real_processing_ready():raise HTTPException(503,'Pemrosesan quotation asli belum diaktifkan.')
     raw=await read_quote(quote)
     try:
         master=None
         if format in ('T01','BOTH'):
-            local=ROOT/'private/T01_MASTER_CLEAN.xlsx'
-            if local.is_file():master=local.read_bytes()
-            elif t01_master is not None:
-                master=await read_quote(t01_master)
-            else:
-                raise QuoteError('Upload master T01 CommVerge untuk membuat output berlogo. File master tidak disimpan di server.')
+            master=await private_t01_master(user['access_token'])
+            if master is None:
+                raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
         name,data,mime=generate(raw,format,margin,fx,details,master)
     except Exception as e:safe_error(e)
     return Response(data,media_type=mime,headers={'Content-Disposition':f'attachment; filename="{name}"','X-Quotation-Status':'DRAFT-REVIEW-REQUIRED'})
