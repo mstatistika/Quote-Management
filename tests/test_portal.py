@@ -1,15 +1,34 @@
 from __future__ import annotations
-import io,json,sys,unittest,zipfile
+import io,json,re,sys,unittest,zipfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from quote_engine import preview,generate,source,QuoteError,sheet_and_shared,value
+from quote_engine import preview,generate,source,QuoteError,sheet_and_shared,value,workbook,setval,pack
 from pdf_export import generate_pdf
 from app import app,permitted
 ROOT=Path(__file__).resolve().parents[1]
 T01=(ROOT/'private/T01_MASTER_CLEAN.xlsx').read_bytes() if (ROOT/'private/T01_MASTER_CLEAN.xlsx').exists() else None
 SRC1=(ROOT/'tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx').read_bytes()
+
+def synthetic_commverge_priced():
+    """Synthetic single-sheet T01-like input: already sold, one broken subtotal."""
+    z=workbook(SRC1);sheet,strings=sheet_and_shared(z)
+    for address,val,kind in [
+        ('D6','PT COMMVERGE SOLUTIONS INDONESIA','text'),
+        ('D16','CUSTOMER QUOTE','text'),
+        ('C21','Product Name','text'),('G21','Unit Price (USD)','text'),
+        ('C23','SYNTHETIC-SKU','text'),('D23','Synthetic demo device','text'),
+        ('F23',2,'number'),('G23',120,'number'),('H23','#VALUE!','text')
+    ]:setval(sheet,address,val,kind)
+    stamped=pack(z,sheet);output=io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(stamped)) as src,zipfile.ZipFile(output,'w') as dst:
+        for entry in src.infolist():
+            content=src.read(entry.filename)
+            if entry.filename=='xl/workbook.xml':
+                content=re.sub(rb'(\bsheet name=")[^"]+',rb'\g<1>Quote to DE',content)
+            dst.writestr(entry,content)
+    return output.getvalue()
 
 class PortalTests(unittest.TestCase):
  def setUp(self):self.c=TestClient(app)
@@ -28,6 +47,40 @@ class PortalTests(unittest.TestCase):
  def test_master_status_requires_auth(self):
   r=self.c.get('/api/master-status')
   self.assertIn(r.status_code,(401,503))
+ def test_prepriced_commverge_no_double_margin(self):
+  raw=synthetic_commverge_priced()
+  p15=preview(raw,15,18300);p20=preview(raw,20,18300)
+  self.assertEqual(p15['source_type'],'commverge_prepriced')
+  self.assertIsNone(p15['actual_gm'])
+  self.assertEqual(p15['total_usd'],240.0)
+  self.assertEqual(p15['total_usd'],p20['total_usd'])
+  self.assertEqual(p15['recomputed_subtotals'],1)
+  name,rendered,mime=generate(raw,'T01',15,18300)
+  self.assertTrue(name.endswith('.xlsx'))
+  zipfile.ZipFile(io.BytesIO(rendered)).testzip()
+  sheet,strings=sheet_and_shared(zipfile.ZipFile(io.BytesIO(rendered)))
+  self.assertEqual(float(value(sheet,strings,'H45')),240.0)
+  pdf_name,pdf,mime=generate_pdf(raw,'T01',15,18300)
+  self.assertEqual(mime,'application/pdf')
+  self.assertTrue(pdf.startswith(b'%PDF-'))
+  with self.assertRaises(QuoteError):generate(raw,'T02',15,18300)
+ def test_prepriced_authenticated_api_bypasses_storage(self):
+  raw=synthetic_commverge_priced()
+  fake={'SUPABASE_URL':'https://test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
+  app.dependency_overrides[permitted]=lambda:{'id':'test','email':'test@example.com','access_token':'test'}
+  try:
+   with patch.dict('os.environ',fake):
+    files={'quote':('synthetic_prepriced.xlsx',raw)}
+    p=self.c.post('/api/preview',files=files,data={'margin':'15','fx':'18300'})
+    self.assertEqual(p.status_code,200,p.text[:200])
+    self.assertEqual(p.json()['source_type'],'commverge_prepriced')
+    p2=self.c.post('/api/pdf-preview',files=files,data={'format':'T01','margin':'15','fx':'18300'})
+    self.assertEqual(p2.status_code,200,p2.text[:200])
+    self.assertTrue(p2.content.startswith(b'%PDF-'))
+    p3=self.c.post('/api/generate',files=files,data={'format':'T01','margin':'15','fx':'18300','file_type':'xlsx'})
+    self.assertEqual(p3.status_code,200,p3.text[:200])
+    self.assertTrue(zipfile.is_zipfile(io.BytesIO(p3.content)))
+  finally:app.dependency_overrides.clear()
  def test_pdf_export_t02_a4(self):
   name,data,mime=generate_pdf(SRC1,'T02',15,18300,'{"customer":"TEST"}')
   self.assertTrue(name.endswith('.pdf'))
