@@ -6,6 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from quote_engine import preview,generate,source,QuoteError,sheet_and_shared,value,workbook,setval,pack
 from pdf_export import generate_pdf
+from preview_compare import compare_workbooks
 from app import app,permitted
 ROOT=Path(__file__).resolve().parents[1]
 T01=(ROOT/'private/T01_MASTER_CLEAN.xlsx').read_bytes() if (ROOT/'private/T01_MASTER_CLEAN.xlsx').exists() else None
@@ -80,6 +81,41 @@ class PortalTests(unittest.TestCase):
     p3=self.c.post('/api/generate',files=files,data={'format':'T01','margin':'15','fx':'18300','file_type':'xlsx'})
     self.assertEqual(p3.status_code,200,p3.text[:200])
     self.assertTrue(zipfile.is_zipfile(io.BytesIO(p3.content)))
+  finally:app.dependency_overrides.clear()
+ def test_compare_original_smartoptics_vs_draft_t02(self):
+  c=compare_workbooks(SRC1,'T02',15,18300)
+  summary=c['summary']
+  self.assertEqual(c['source_type'],'smartoptics_original')
+  self.assertEqual(summary['rows'],3)
+  self.assertEqual(summary['sku_matches'],3)
+  self.assertEqual(summary['qty_matches'],3)
+  self.assertEqual(summary['description_matches'],3)
+  self.assertEqual(summary['price_validated'],3)
+  self.assertEqual(summary['total_validated'],3)
+  self.assertGreater(summary['margin_adjustments'],0)
+  self.assertEqual(summary['unexpected_differences'],0)
+  self.assertEqual(c['source_columns']['sku'],'D')
+  self.assertEqual(c['draft_columns']['sku'],'D')
+ def test_compare_existing_commverge_priced_vs_draft_t01(self):
+  raw=synthetic_commverge_priced()
+  c=compare_workbooks(raw,'T01',15,18300,master=raw)
+  self.assertEqual(c['source_type'],'commverge_prepriced')
+  self.assertEqual(c['summary']['rows'],1)
+  self.assertEqual(c['summary']['subtotals_repaired'],1)
+  self.assertEqual(c['summary']['unexpected_differences'],0)
+  self.assertEqual(c['source_rows'][0]['total'],'#VALUE!')
+  self.assertEqual(float(c['draft_rows'][0]['total']),240.0)
+  c20=compare_workbooks(raw,'T01',20,18300,master=raw)
+  self.assertEqual(c['draft_total'],c20['draft_total'])
+ def test_authenticated_compare_api(self):
+  fake={'SUPABASE_URL':'https://test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
+  app.dependency_overrides[permitted]=lambda:{'id':'test','email':'test@example.com','access_token':'test'}
+  try:
+   with patch.dict('os.environ',fake):
+    r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300','format':'T02','details':'{}'})
+    self.assertEqual(r.status_code,200,r.text[:200])
+    self.assertEqual(r.json()['comparison']['summary']['sku_matches'],3)
+    self.assertEqual(r.json()['comparison']['summary']['unexpected_differences'],0)
   finally:app.dependency_overrides.clear()
  def test_pdf_export_t02_a4(self):
   name,data,mime=generate_pdf(SRC1,'T02',15,18300,'{"customer":"TEST"}')
