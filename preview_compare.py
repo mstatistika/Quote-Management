@@ -31,7 +31,7 @@ def _logo(z, is_commverge):
     """Return only a bounded raster logo from an already-authorized XLSX."""
     if not is_commverge:
         return None
-    for filename in ("xl/media/image.jpg", "xl/media/image.jpeg", "xl/media/image1.png", "xl/media/image.png"):
+    for filename in ("xl/media/image.jpg", "xl/media/image1.jpeg", "xl/media/image.jpeg", "xl/media/image1.png", "xl/media/image.png"):
         if filename not in z.namelist():
             continue
         item = z.getinfo(filename)
