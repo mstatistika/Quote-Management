@@ -48,6 +48,16 @@ class PortalTests(unittest.TestCase):
   self.assertIn('<option value="T02">Smartoptics</option>',r.text)
   self.assertNotIn('CommVerge (T01)',r.text)
   self.assertNotIn('Smartoptics (T02)',r.text)
+  self.assertNotIn('id="demoPanel"',r.text)
+  self.assertNotIn('id="rResultInfo"',r.text)
+  self.assertNotIn('id="rPricingNote"',r.text)
+  self.assertNotIn('id="rCompareNote"',r.text)
+  self.assertIn('class="review-grid"',r.text)
+  self.assertIn('id="rCompareChecks"',r.text)
+  self.assertIn('id="rDraftDocument"',r.text)
+  self.assertLess(r.text.index('id="rCompareChecks"'),r.text.index('id="rDraftDocument"'))
+  self.assertLess(r.text.index('id="rExportType"'),r.text.index('id="rUsd"'))
+  self.assertLess(r.text.index('id="rUsd"'),r.text.index('id="rAck"'))
  def test_real_requires_auth(self):
   r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
   r=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
@@ -174,6 +184,14 @@ class PortalTests(unittest.TestCase):
   self.assertEqual(float(c['draft_document']['total']),240)
   self.assertEqual(c['source_rows'][0]['total'],'#VALUE!')
   self.assertEqual(float(c['draft_document']['items'][0]['total']),240)
+ def test_preview_includes_all_generated_items_for_scrolling(self):
+  from preview_compare import _document_snapshot
+  raw=synthetic_commverge_priced()
+  rows=[{'row':23+i,'sku':'TEST-'+str(i),'description':'Safe test line '+str(i),'qty':'1','unit':'10','total':'10','status':'COCOK'} for i in range(16)]
+  doc=_document_snapshot(raw,'T01',rows)
+  self.assertEqual(doc['item_count'],16)
+  self.assertEqual(len(doc['items']),16)
+  self.assertEqual(doc['omitted'],0)
  def test_authenticated_compare_api(self):
   fake={'SUPABASE_URL':'https://test.supabase.co','SUPABASE_PUBLISHABLE_KEY':'sb_publishable_test','ALLOWED_EMAILS':'test@example.com'}
   app.dependency_overrides[permitted]=lambda:{'id':'test','email':'test@example.com','access_token':'test'}
