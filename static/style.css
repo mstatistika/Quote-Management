@@ -376,3 +376,91 @@ footer{color:#766D64;padding:22px 0}
   .quote-paper-totals strong{font-size:11px}
   .visual-doc-label h4{font-size:10px}
 }
+
+/* v2.3.2 - compact two-column review: checks on left, scrollable output on right */
+.worksheet-preview{
+  width:min(1120px,calc(100vw - 32px));
+  max-width:none;
+  margin:18px 0 15px 50%;
+  transform:translateX(-50%);
+  padding:14px;
+}
+.review-grid{
+  display:grid;
+  grid-template-columns:minmax(220px,275px) minmax(0,1fr);
+  align-items:start;
+  gap:14px;
+}
+.review-grid>.visual-qa{
+  min-width:0;
+  margin:0;
+  padding:15px 14px;
+  position:static;
+}
+.review-grid .visual-qa h3{
+  color:var(--ms-navy);
+  margin:0 0 8px;
+  font-size:13px;
+  font-weight:800;
+}
+.review-grid .qa-number-line{gap:9px;padding:11px 0}
+.review-grid .qa-item-index{min-width:28px;width:28px}
+.review-grid .qa-item-name{font-size:11px}
+.review-grid .qa-item-amount{font-size:11px}
+.review-preview{
+  min-width:0;
+  background:#fff;
+  border:1px solid #d6dadf;
+  border-radius:9px;
+  padding:10px;
+}
+.review-preview .worksheet-heading{
+  padding:0 0 9px;
+  margin:0 0 9px;
+  border-bottom:1px solid #e5e7e9;
+}
+.review-preview .visual-document-card{
+  padding:0;
+  background:#fff;
+  border:0;
+  border-radius:0;
+}
+.review-preview .quote-paper{
+  max-height:535px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.review-preview .pdf-preview{
+  padding:0;
+  margin:0;
+  border:0;
+  background:transparent;
+}
+.review-preview .pdf-preview-frame{
+  min-height:400px;
+  height:535px;
+  margin-top:7px;
+}
+.review-preview .pdf-preview-frame[hidden]{display:none}
+.review-preview .pdf-actions{padding:0 0 6px;gap:10px}
+.review-preview .pdf-actions .minor{margin:0}
+.draft-total{margin:14px 0 10px}
+.draft-total strong{font-size:25px}
+.draft-total b{font-size:15px}
+#rResults .full{margin:12px 0}
+#rResults .ack{margin:11px 0 7px}
+#rResults .cta{margin:8px 0 0}
+@media(max-width:750px){
+  .review-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+  .review-grid>.visual-qa{padding:12px 14px}
+  .review-grid .qa-number-line{padding:8px 0}
+  .review-preview .quote-paper{max-height:410px}
+  .review-preview .pdf-preview-frame{height:420px;min-height:330px}
+}
+@media(max-width:440px){
+  .worksheet-preview{width:calc(100vw - 28px);padding:9px}
+  .review-preview{padding:8px}
+  .review-preview .quote-paper{max-height:355px}
+  .draft-total strong{font-size:23px}
+}
