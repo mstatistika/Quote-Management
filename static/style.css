@@ -145,3 +145,16 @@ footer{color:#766D64;padding:22px 0}
 .demo-shell .item .desc{font-size:11px}
 .advanced-fields .fields-two{margin-top:12px}
 @media(max-width:440px){.demo-shell{padding:0 15px 12px}.demo-heading{padding:12px 0 10px}}
+
+/* Inline A4 PDF preview - one-page workflow, no collapse */
+.pdf-preview{margin:14px 0 16px;padding:12px;border:1px solid var(--ms-light-khaki);border-radius:9px;background:#fffdfa}
+.pdf-preview .subheading{margin:0;color:var(--ms-navy);font-size:12px}
+.pdf-preview .row{align-items:center}
+.pdf-preview .minor{margin:9px 0 0;font-size:11px;line-height:1.5}
+.pdf-preview-frame{display:block;width:100%;height:min(68vh,650px);min-height:360px;border:1px solid var(--ms-light-khaki);border-radius:5px;background:#f0eee8;margin-top:10px}
+.pdf-preview-frame[hidden]{display:none}
+#rExportType{margin-bottom:4px}
+@media(max-width:440px){
+ .pdf-preview{padding:10px}
+ .pdf-preview-frame{min-height:310px;height:440px}
+}
