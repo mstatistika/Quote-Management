@@ -8,9 +8,7 @@ let access={configured:false,url:'',publishable_key:''};
 let token=null,realPreview=null,realMode='simple';
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
-const demoPanel=$('demoPanel');
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
-demoPanel.addEventListener('toggle',syncDemoBadge);
 syncDemoBadge();
 function onFileSelected(){
   invalidateReal();
@@ -38,11 +36,11 @@ const items=samples.map(i=>{const unit=Math.ceil((i.cost/(1-margin/100))*100-1e-
 return {margin,fx,items,total:Math.round(items.reduce((x,y)=>x+y.total,0)*100)/100};};
 function updateDemo(){try{const s=getDemo();demoState={total:s.total,valid:true};$('dUsd').textContent=sf(s.total);$('dIdr').textContent=rf(s.total*s.fx);$('dGm').textContent=s.margin+'%';$('dRate').textContent=rf(s.fx);$('dItems').replaceChildren(...s.items.map(itemElement));$('dQa').textContent='5/5 pemeriksaan lulus';$('dError').textContent='';$('dDownload').disabled=false;}catch(e){demoState.valid=false;$('dError').textContent=e.message;$('dDownload').disabled=true;}}
 $('dMargin').oninput=updateDemo;$('dFx').oninput=updateDemo;
-$('dReset').onclick=()=>{$('dMargin').value=15;$('dFx').value=18300;$('dCustomer').value='DEMO Customer';$('dProject').value='Synthetic Sample';$('dFormat').value='T01';$('dAdvanced').open=false;document.querySelector('[data-mode="simple"]').click();updateDemo();};
-document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(t=>t.classList.toggle('active',t===b));const advanced=b.dataset.mode==='advanced';$('dAdvanced').style.display=advanced?'block':'none';$('dAdvanced').open=advanced;});
+$('dReset').onclick=()=>{$('dMargin').value=15;$('dFx').value=18300;$('dCustomer').value='DEMO Customer';$('dProject').value='Synthetic Sample';$('dFormat').value='T01';document.querySelector('[data-mode="simple"]').click();updateDemo();};
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(t=>t.classList.toggle('active',t===b));const advanced=b.dataset.mode==='advanced';$('dAdvanced').style.display=advanced?'block':'none';});
 $('dDownload').onclick=async()=>{if(!demoState.valid)return;const btn=$('dDownload');btn.disabled=true;btn.textContent='Menyiapkan Excel...';try{const s=getDemo();const url=new URL('/api/demo-export',location.origin);url.searchParams.set('margin',s.margin);url.searchParams.set('fx',s.fx);url.searchParams.set('format',$('dFormat').value);url.searchParams.set('customer',$('dCustomer').value);url.searchParams.set('project',$('dProject').value);const r=await fetch(url);if(!r.ok){const d=await r.json();throw Error(d.detail||'Gagal mengunduh contoh.');}const blob=await r.blob();download(blob,$('dFormat').value==='BOTH'?'DANIEL_DEMO_SAMPLES.zip':$('dFormat').value+'-DEMO-SAMPLE.xlsx');$('dError').textContent='File contoh berhasil diunduh. Bukan quotation untuk customer.';}catch(e){$('dError').textContent=e.message;}finally{btn.disabled=false;btn.textContent='↓ Download Excel Contoh';}};
 function download(blob,name){const obj=URL.createObjectURL(blob),a=document.createElement('a');a.href=obj;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),20000);}
-function switchRealMode(mode){realMode=mode;document.querySelectorAll('[data-r-mode]').forEach(b=>b.classList.toggle('active',b.dataset.rMode===mode));$('rAdvanced').style.display=mode==='advanced'?'block':'none';$('rAdvanced').open=mode==='advanced';invalidateReal();}
+function switchRealMode(mode){realMode=mode;document.querySelectorAll('[data-r-mode]').forEach(b=>b.classList.toggle('active',b.dataset.rMode===mode));$('rAdvanced').style.display=mode==='advanced'?'block':'none';invalidateReal();}
 function invalidateReal(){realPreview=null;$('rResults').hidden=true;$('rAck').checked=false;$('rGenerate').disabled=true;}
 document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMode(b.dataset.rMode));
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
