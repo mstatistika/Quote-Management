@@ -238,8 +238,7 @@ function renderComparison(c){
   ];
   const wrap=$('rCompareChecks');
   const nodes=checks.map(([label,amount],index)=>{
-    const li=docNode('li','qa-number-line');
-    li.append(docNode('span','qa-item-index',String(index+1).padStart(2,'0')));
+    const li=docNode('li','qa-line');
     li.append(docNode('span','qa-item-name',label));
     li.append(docNode('strong','qa-item-amount',amount));
     if(index===6&&stats.unexpected_differences)li.classList.add('qa-item-warning');

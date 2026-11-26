@@ -1,4 +1,4 @@
-# Quote Generator — v2.3.2
+# Quote Generator — v2.3.3
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
@@ -20,7 +20,7 @@ The earlier `ENABLE_REAL_QUOTATIONS` environment variable is **deprecated**. Aut
 
 Pengguna memilih hasil **CommVerge**, **Smartoptics**, atau **Keduanya** tanpa kode teknis format pada antarmuka. File sumber boleh menggunakan salah satu format; tipe file menentukan aturan perhitungan, bukan format output.
 
-Preview hanya menampilkan **quotation hasil generator**, dalam bentuk cuplikan visual satu dokumen (logo yang tersedia, header, customer, **seluruh item**, total, dan terms) di panel kanan yang bisa di-scroll. File sumber tetap dianalisis di backend, tetapi **tidak ditampilkan sebagai dokumen kedua**. Tujuh pemeriksaan SKU, kuantitas, deskripsi, harga, subtotal, perubahan margin, dan selisih muncul sebagai daftar angka **01–07 vertikal di panel kiri**. Total DRAFT ditempatkan tepat sebelum persetujuan dan tombol download. Panel demo, ringkasan tambahan, dan uraian preview panjang dihapus.
+Preview hanya menampilkan **quotation hasil generator**, dalam bentuk cuplikan visual satu dokumen (logo yang tersedia, header, customer, **seluruh item**, total, dan terms) di panel kanan yang bisa di-scroll. File sumber tetap dianalisis di backend, tetapi **tidak ditampilkan sebagai dokumen kedua**. Tujuh pemeriksaan SKU, kuantitas, deskripsi, harga, subtotal, perubahan margin, dan selisih muncul sebagai daftar label tanpa nomor di panel kiri. Total DRAFT ditempatkan tepat sebelum persetujuan dan tombol download. Panel demo, ringkasan tambahan, dan uraian preview panjang dihapus.
 
 Hasil download Excel, PDF, dan ZIP menggunakan nama CommVerge/Smartoptics dalam filename. Identifier internal tetap dipakai untuk kompatibilitas API dan generator, namun tidak ditampilkan dalam label pengguna atau nama file. Preview visual merupakan ringkasan dari sel XLSX output, bukan rasterisasi pixel-perfect workbook Excel.
 
@@ -57,4 +57,4 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 - Demo is **not** equivalent to successful authenticated end-to-end verification; real supplier XLSX output still requires live QA.
 - No built-in pricing/tax assumptions beyond explicitly entered margin and FX.
 
-<!-- Deployment sync: Quote Generator v2.3.2 production build trigger (2026-11-26). No application logic changes. -->
+Preview v2.3.3 stays within the generator container; on desktop its height follows the QA card, with internal scrolling. The existing CR logo is left aligned and the title right aligned.
