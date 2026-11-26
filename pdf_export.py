@@ -54,7 +54,7 @@ def pdf_for_one(q,code,meta,date,master_bytes):
  frame=Frame(ml,bottom,page_width-ml-mr,page_height-top-bottom,
              leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0,id='body')
  doc=BaseDocTemplate(buf,pagesize=A4,pageTemplates=[PageTemplate(id='qt',frames=[frame],onPage=decorate)],
-                     title=f'Quote {code} DRAFT',author='Quote Management System')
+                     title=f'Quote {code} DRAFT',author='Quote Generator')
  story=[]
  if code=='T01' and master_bytes:
   try:
