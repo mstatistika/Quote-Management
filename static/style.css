@@ -456,3 +456,9 @@ footer{color:#766D64;padding:22px 0}
 #rResults .delivery-actions .cta{width:100%;padding:8px 12px}
 #rResults .email-cta{background:transparent;color:var(--ms-navy);border:1px solid var(--ms-navy)}
 @media(max-width:440px){.top .cr-logo{width:32px;height:32px}.cr-wordmark{font-size:11px}.delivery-actions{flex-direction:row}.delivery-actions .cta{flex:1}}
+
+/* Login-only entry, using the existing brand system. */
+.login-card{width:100%;max-width:400px;justify-self:center;margin:24px 0 0;padding:24px}
+.login-card h2{color:var(--ms-navy);margin:0 0 18px;font-size:18px}
+.login-card .fields-two{grid-template-columns:minmax(0,1fr);gap:14px}
+.login-card .error:empty{display:none}

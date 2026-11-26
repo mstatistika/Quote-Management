@@ -15,19 +15,8 @@
   <span id="statustag" class="sr-only" role="status">Preview</span>
 </header>
 <main class="qms-main">
-<section id="real" class="card upload-card" aria-label="Upload quotation Excel">
-  <p class="upload-caption" id="uploadFileCaption">Pilih quotation supplier (.xlsx)</p>
-  <label id="uploadAction" class="upload-primary upload-control">
-    <span>↑ Upload Excel</span>
-    <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX" aria-describedby="uploadFileCaption">
-  </label>
-  <p id="selectedFileInfo" class="file-selection" aria-live="polite" hidden></p>
-  <div id="realUnconfigured" class="access-message hidden" role="status">
-    <strong>File dipilih, belum diproses.</strong>
-    <p>Akses privat belum diaktifkan. File tetap di perangkat dan tidak diunggah.</p>
-  </div>
-  <div id="realLogin" class="access-message hidden">
-    <h2>Masuk</h2>
+  <form id="realLogin" class="card login-card" aria-label="Login">
+    <h2>Login</h2>
     <div class="fields-two">
       <label>User
         <select id="rEmail" autocomplete="username" required>
@@ -40,10 +29,18 @@
         <input id="rPassword" type="password" autocomplete="current-password" placeholder="Masukkan password" required>
       </label>
     </div>
-    <button id="rLoginBtn" type="button" class="cta">Masuk</button>
+    <button id="rLoginBtn" type="submit" class="cta" disabled>Login</button>
     <p class="error" id="rLoginError" role="alert"></p>
-  </div>
-  <div id="realWorkspace" class="hidden workspace-content">
+  </form>
+
+<section id="real" class="card upload-card hidden" aria-label="Upload quotation Excel">
+  <p class="upload-caption" id="uploadFileCaption">Pilih quotation supplier (.xlsx)</p>
+  <label id="uploadAction" class="upload-primary upload-control">
+    <span>↑ Upload Excel</span>
+    <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX" aria-describedby="uploadFileCaption">
+  </label>
+  <p id="selectedFileInfo" class="file-selection" aria-live="polite" hidden></p>
+  <div id="realWorkspace" class="workspace-content">
     <div class="row between logout-row"><span aria-hidden="true"></span><button id="rLogout" class="small-link" type="button">Keluar</button></div>
     <div class="fields-two price-fields">
       <label>Margin (%)<input id="rMargin" type="number" min=".01" max="80" step=".01" value="15"></label>

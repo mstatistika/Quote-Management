@@ -5,7 +5,7 @@ const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 let access={configured:false,url:'',publishable_key:''};
 let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0,pdfRequestEpoch=null,pdfSequence=0,reviewMode="excel",mailReady=false,deliveryBusy=false;
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
-// One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
+// Login-first flow. Authentication and real quotation access are enforced by the server.
 function renderMasterStatus(){
   const info=$('rMasterStatus');
   info.hidden=$('rFormat').value==='T02' || !realPreview || realPreview.source_type==='commverge_prepriced';
@@ -44,20 +44,38 @@ function onFileSelected(){
   for(const option of $('rFormat').options)option.disabled=false;
   const selected=$('rFile').files[0];
   const info=$('selectedFileInfo');
-  $('realUnconfigured').classList.add('hidden');
-  $('realLogin').classList.add('hidden');
-  $('realWorkspace').classList.add('hidden');
   $('rError').textContent='';
   info.hidden=!selected;
-  if(!selected) return;
-  info.textContent='Dipilih: '+selected.name;
+  info.textContent='';
+  if(!selected)return;
   if(!selected.name.toLowerCase().endsWith('.xlsx') || !selected.size || selected.size>8*1024*1024){
     info.textContent='Pilih file XLSX maksimal 8 MB.';
+    $('rFile').value='';
     return;
   }
-  if(!access.configured) $('realUnconfigured').classList.remove('hidden');
-  else if(token) $('realWorkspace').classList.remove('hidden');
-  else $('realLogin').classList.remove('hidden');
+  info.textContent='Dipilih: '+selected.name;
+}
+function showLogin(message=''){
+  token=null;
+  masterReady=null;
+  $('real').classList.add('hidden');
+  $('rFile').value='';
+  $('rPassword').value='';
+  $('rEmail').value='';
+  for(const [key] of metaNames)$('meta_'+key).value='';
+  $('rMargin').value='15';
+  $('rFx').value='18300';
+  $('rFormat').value='T01';
+  $('rExportType').value='xlsx';
+  $('rDraftDocument').replaceChildren();
+  $('rCompareChecks').replaceChildren();
+  $('rUsd').textContent='—';
+  $('rIdr').textContent='—';
+  switchRealMode('simple');
+  onFileSelected();
+  $('realLogin').classList.remove('hidden');
+  $('rLoginError').textContent=message;
+  $('rLoginBtn').disabled=!access.configured;
 }
 $('rFile').addEventListener('change',onFileSelected);
 function download(blob,name){const obj=URL.createObjectURL(blob),a=document.createElement('a');a.href=obj;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),20000);}
@@ -82,8 +100,9 @@ function invalidateReal(){
 document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMode(b.dataset.rMode));
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
 function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Pilih Excel quotation .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
-async function remoteApi(path,fd){const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+token},body:fd,cache:'no-store'});if(!r.ok){const data=await r.json().catch(()=>({detail:'Permintaan gagal.'}));if([401,403].includes(r.status))token=null;throw Error(data.detail||'Validasi gagal.');}return r;}
-$('rLoginBtn').onclick=async()=>{
+async function remoteApi(path,fd){const session=token;const r=await fetch(path,{method:'POST',headers:{Authorization:'Bearer '+session},body:fd,cache:'no-store'});if(session!==token)throw Error('Sesi telah berakhir.');if(!r.ok){const data=await r.json().catch(()=>({detail:'Permintaan gagal.'}));if(r.status===401)showLogin('Sesi berakhir. Silakan login kembali.');throw Error(data.detail||'Validasi gagal.');}return r;}
+$('realLogin').onsubmit=async(event)=>{
+  event.preventDefault();
   const btn=$('rLoginBtn');
   btn.disabled=true;
   $('rLoginError').textContent='';
@@ -111,21 +130,16 @@ $('rLoginBtn').onclick=async()=>{
     }
     $('rPassword').value='';
     $('realLogin').classList.add('hidden');
-    $('realWorkspace').classList.remove('hidden');
+    $('real').classList.remove('hidden');
     checkPrivateMaster();
-    $('realWorkspace').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
+    token=null;
     $('rLoginError').textContent=e.message;
   }finally{
     btn.disabled=false;
   }
 };
-$('rLogout').onclick=()=>{
-  token=null;
-  masterReady=null;
-  $('rPassword').value='';
-  onFileSelected();
-};
+$('rLogout').onclick=()=>showLogin();
 
 function docNode(tag,cls,textValue){
   const n=document.createElement(tag);
@@ -370,6 +384,19 @@ $('rSendEmail').onclick=async()=>{
 };
 ['rMargin','rFx'].forEach(id=>$(id).oninput=invalidateReal);
 $('rFormat').onchange=()=>{invalidateReal();renderMasterStatus();updateDownloadLabel();};
-async function init(){switchRealMode('simple');renderMasterStatus();updateDownloadLabel();
-try{const status=await(await fetch('/api/status')).json();mailReady=Boolean(status.email_ready);updateDownloadLabel();$('statustag').textContent=status.real_processing_enabled?'Siap':'Terbatas';const cfg=await(await fetch('/api/auth-config')).json();access=cfg;onFileSelected();}catch(e){$('statustag').textContent='Offline';onFileSelected();}}
+async function init(){
+  switchRealMode('simple');renderMasterStatus();updateDownloadLabel();
+  try{
+    const response=await fetch('/api/auth-config',{cache:'no-store'});
+    if(!response.ok)throw Error('Login belum tersedia.');
+    access=await response.json();
+    showLogin(access.configured?'':'Login belum dikonfigurasi.');
+  }catch(e){showLogin('Login belum tersedia. Coba muat ulang halaman.');}
+  try{
+    const status=await(await fetch('/api/status',{cache:'no-store'})).json();
+    mailReady=Boolean(status.email_ready);
+    updateDownloadLabel();
+    $('statustag').textContent=status.real_processing_enabled?'Siap':'Terbatas';
+  }catch(e){$('statustag').textContent='Offline';}
+}
 init();
