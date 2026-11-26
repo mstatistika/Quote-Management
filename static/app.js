@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const sf=(v)=>'USD '+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0;
+let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0,pdfRequestEpoch=null;
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function renderMasterStatus(){
@@ -276,10 +276,11 @@ function pdfForm(){
   return fd;
 }
 async function refreshPdfPreview(){
-  if(!realPreview)return;
+  if(!realPreview||pdfRequestEpoch===previewEpoch)return;
   const epoch=previewEpoch;
-  $('rRefreshPdf').disabled=true;
-  $('rPreviewMessage').textContent='Menyiapkan preview PDF A4…';
+  pdfRequestEpoch=epoch;
+  $('rPreviewMessage').textContent='Menyiapkan preview…';
+  $('rPreviewMessage').hidden=false;
   clearPdfPreview();
   try{
     const r=await remoteApi('/api/pdf-preview',pdfForm());
@@ -287,16 +288,17 @@ async function refreshPdfPreview(){
     if(epoch!==previewEpoch)return;
     if(blob.type!=='application/pdf'||!blob.size)throw Error('Preview bukan file PDF yang valid.');
     pdfObjectUrl=URL.createObjectURL(blob);
-    $('rPdfFrame').src=pdfObjectUrl;
+    $('rPdfFrame').src=pdfObjectUrl+'#page=1&view=FitH';
     $('rPdfFrame').hidden=false;
-    $('rPreviewMessage').textContent=$('rFormat').value==='BOTH'
-      ?'Preview menampilkan hasil CommVerge. Download Keduanya berisi hasil CommVerge dan Smartoptics.'
-      :'Preview PDF A4 sesuai item, margin, kurs, dan detail quotation yang telah divalidasi.';
+    $('rPreviewMessage').textContent='';
+    $('rPreviewMessage').hidden=true;
+    $('rPdfFrame').title=$('rFormat').value==='BOTH'?'Preview PDF CommVerge; unduhan ZIP berisi kedua format':'Preview PDF quotation A4';
   }catch(e){
     if(epoch===previewEpoch){
       $('rPreviewMessage').textContent='Preview PDF belum tersedia: '+e.message;
+      $('rPreviewMessage').hidden=false;
     }
-  }finally{$('rRefreshPdf').disabled=false;}
+  }finally{if(pdfRequestEpoch===epoch)pdfRequestEpoch=null;}
 }
 $('rPreview').onclick=async()=>{
   const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';
@@ -323,7 +325,6 @@ $('rPreview').onclick=async()=>{
   }catch(e){invalidateReal();$('rError').textContent=e.message;}
   finally{btn.disabled=false;}
 };
-$('rRefreshPdf').onclick=refreshPdfPreview;
 $('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
 function updateDownloadLabel(){
   const fmt=$('rExportType').value;

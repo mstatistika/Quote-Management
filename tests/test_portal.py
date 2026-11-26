@@ -61,7 +61,11 @@ class PortalTests(unittest.TestCase):
   self.assertIn('id="rDraftDocument"',r.text)
   self.assertLess(r.text.index('id="rCompareChecks"'),r.text.index('id="rDraftDocument"'))
   self.assertLess(r.text.index('id="rExportType"'),r.text.index('id="rUsd"'))
-  self.assertLess(r.text.index('id="rUsd"'),r.text.index('id="rAck"'))
+  self.assertLess(r.text.index('id="rAck"'),r.text.index('id="rGenerate"'))
+  self.assertIn('class="download-summary"',r.text)
+  self.assertLess(r.text.index('id="rUsd"'),r.text.index('id="rGenerate"'))
+  self.assertNotIn('id="rRefreshPdf"',r.text)
+  self.assertNotIn('rRefreshPdf',self.c.get('/static/app.js').text)
  def test_real_requires_auth(self):
   r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
   r=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))

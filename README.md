@@ -1,4 +1,4 @@
-# Quote Generator — v2.3.3
+# Quote Generator — v2.3.4
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
@@ -58,3 +58,5 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 - No built-in pricing/tax assumptions beyond explicitly entered margin and FX.
 
 Preview v2.3.3 stays within the generator container; on desktop its height follows the QA card, with internal scrolling. The existing CR logo is left aligned and the title right aligned.
+
+Version 2.3.4: PDF preview removes redundant success copy and manual refresh; loading and error messages remain. Review consent precedes the compact total/download row.
