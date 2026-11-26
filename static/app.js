@@ -5,7 +5,7 @@ const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 const samples=[{sku:'DEMO-SKU-001',description:'Optical transponder sample',qty:2,cost:1000},{sku:'DEMO-SKU-002',description:'Pluggable module sample',qty:4,cost:250.5},{sku:'DEMO-SKU-003',description:'Chassis fan sample',qty:1,cost:85}];
 let demoState={total:0,valid:false};
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple',masterReady=null;
+let token=null,realPreview=null,realMode='simple',masterReady=null,pdfObjectUrl=null,previewEpoch=0;
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
@@ -73,7 +73,19 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.quer
 $('dDownload').onclick=async()=>{if(!demoState.valid)return;const btn=$('dDownload');btn.disabled=true;btn.textContent='Menyiapkan Excel...';try{const s=getDemo();const url=new URL('/api/demo-export',location.origin);url.searchParams.set('margin',s.margin);url.searchParams.set('fx',s.fx);url.searchParams.set('format',$('dFormat').value);url.searchParams.set('customer',$('dCustomer').value);url.searchParams.set('project',$('dProject').value);const r=await fetch(url);if(!r.ok){const d=await r.json();throw Error(d.detail||'Gagal mengunduh contoh.');}const blob=await r.blob();download(blob,$('dFormat').value==='BOTH'?'DANIEL_DEMO_SAMPLES.zip':$('dFormat').value+'-DEMO-SAMPLE.xlsx');$('dError').textContent='File contoh berhasil diunduh. Bukan quotation untuk customer.';}catch(e){$('dError').textContent=e.message;}finally{btn.disabled=false;btn.textContent='↓ Download Excel Contoh';}};
 function download(blob,name){const obj=URL.createObjectURL(blob),a=document.createElement('a');a.href=obj;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),20000);}
 function switchRealMode(mode){realMode=mode;document.querySelectorAll('[data-r-mode]').forEach(b=>b.classList.toggle('active',b.dataset.rMode===mode));$('rAdvanced').style.display=mode==='advanced'?'block':'none';invalidateReal();}
-function invalidateReal(){realPreview=null;$('rResults').hidden=true;$('rAck').checked=false;$('rGenerate').disabled=true;}
+function clearPdfPreview(){
+  if(pdfObjectUrl){URL.revokeObjectURL(pdfObjectUrl);pdfObjectUrl=null;}
+  $('rPdfFrame').removeAttribute('src');
+  $('rPdfFrame').hidden=true;
+}
+function invalidateReal(){
+  previewEpoch+=1;
+  clearPdfPreview();
+  realPreview=null;
+  $('rResults').hidden=true;
+  $('rAck').checked=false;
+  $('rGenerate').disabled=true;
+}
 document.querySelectorAll('[data-r-mode]').forEach(b=>b.onclick=()=>switchRealMode(b.dataset.rMode));
 for(const [key,label] of metaNames){const el=document.createElement('label');el.textContent=label;const input=document.createElement('input');input.id='meta_'+key;input.maxLength=190;if(key==='date'){input.type='date';}else if(key==='email'){input.type='email';}else{input.type='text';}input.oninput=invalidateReal;el.append(input);$('rAdvancedFields').append(el);}
 function form(){if(!token)throw Error('Login terlebih dahulu.');const f=$('rFile').files[0];if(!f||!f.name.toLowerCase().endsWith('.xlsx'))throw Error('Upload original supplier .xlsx.');if(f.size>8*1024*1024)throw Error('File lebih dari 8 MB.');const fd=new FormData();fd.append('quote',f);fd.append('margin',$('rMargin').value);fd.append('fx',$('rFx').value);return fd;}
@@ -123,11 +135,92 @@ $('rLogout').onclick=()=>{
   syncDemoBadge();
   onFileSelected();
 };
-$('rPreview').onclick=async()=>{const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';try{const r=await remoteApi('/api/preview',form());const p=await r.json();realPreview=p;$('rUsd').textContent=sf(p.total_usd);$('rIdr').textContent=rf(p.total_idr);$('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;$('rItems').replaceChildren(...p.items.map(i=>itemElement({sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd})));$('rResults').hidden=false;$('rAck').checked=false;$('rGenerate').disabled=true;}catch(e){invalidateReal();$('rError').textContent=e.message;}finally{btn.disabled=false;}};
+function collectDetails(){
+  const meta={};
+  if(realMode==='advanced'){
+    for(const [key] of metaNames){
+      const v=$('meta_'+key).value.trim();
+      if(v)meta[key]=v;
+    }
+  }
+  return meta;
+}
+function pdfForm(){
+  const fd=form();
+  fd.append('format',$('rFormat').value);
+  fd.append('details',JSON.stringify(collectDetails()));
+  return fd;
+}
+async function refreshPdfPreview(){
+  if(!realPreview)return;
+  const epoch=previewEpoch;
+  $('rRefreshPdf').disabled=true;
+  $('rPreviewMessage').textContent='Menyiapkan preview PDF A4…';
+  clearPdfPreview();
+  try{
+    const r=await remoteApi('/api/pdf-preview',pdfForm());
+    const blob=await r.blob();
+    if(epoch!==previewEpoch)return;
+    if(blob.type!=='application/pdf'||!blob.size)throw Error('Preview bukan file PDF yang valid.');
+    pdfObjectUrl=URL.createObjectURL(blob);
+    $('rPdfFrame').src=pdfObjectUrl;
+    $('rPdfFrame').hidden=false;
+    $('rPreviewMessage').textContent=$('rFormat').value==='BOTH'
+      ?'Menampilkan preview CommVerge (T01). Jika memilih kedua format, file download berisi T01 dan T02.'
+      :'Preview PDF A4 sesuai item, margin, kurs, dan detail quotation yang telah divalidasi.';
+  }catch(e){
+    if(epoch===previewEpoch){
+      $('rPreviewMessage').textContent='Preview PDF belum tersedia: '+e.message;
+    }
+  }finally{$('rRefreshPdf').disabled=false;}
+}
+$('rPreview').onclick=async()=>{
+  const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';
+  invalidateReal();
+  try{
+    const r=await remoteApi('/api/preview',form());
+    const p=await r.json();
+    realPreview=p;
+    $('rUsd').textContent=sf(p.total_usd);
+    $('rIdr').textContent=rf(p.total_idr);
+    $('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;
+    $('rItems').replaceChildren(...p.items.map(i=>itemElement({
+      sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd
+    })));
+    $('rResults').hidden=false;
+    $('rAck').checked=false;
+    $('rGenerate').disabled=true;
+    await refreshPdfPreview();
+  }catch(e){invalidateReal();$('rError').textContent=e.message;}
+  finally{btn.disabled=false;}
+};
+$('rRefreshPdf').onclick=refreshPdfPreview;
 $('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
-$('rGenerate').onclick=async()=>{const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';try{if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');const fd=form();fd.append('format',$('rFormat').value);const meta={};if(realMode==='advanced')for(const [key] of metaNames){const v=$('meta_'+key).value.trim();if(v)meta[key]=v;}fd.append('details',JSON.stringify(meta));const r=await remoteApi('/api/generate',fd);const mime=r.headers.get('Content-Type')||'';const filename=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]||'QUOTE_DRAFT.'+(mime.includes('zip')?'zip':'xlsx');download(await r.blob(),filename);$('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';}catch(e){$('rError').textContent=e.message;}finally{btn.disabled=false;}};
+function updateDownloadLabel(){
+  const fmt=$('rExportType').value;
+  const both=$('rFormat').value==='BOTH';
+  $('rGenerate').textContent=fmt==='pdf'
+    ?'↓ Download '+(both?'ZIP PDF':'PDF A4')+' DRAFT'
+    :'↓ Download '+(both?'ZIP Excel':'Excel')+' DRAFT';
+}
+$('rExportType').onchange=updateDownloadLabel;
+$('rGenerate').onclick=async()=>{
+  const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';
+  try{
+    if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');
+    const fd=pdfForm();
+    fd.append('file_type',$('rExportType').value);
+    const r=await remoteApi('/api/generate',fd);
+    const mime=r.headers.get('Content-Type')||'';
+    const fallback='QUOTE_DRAFT.'+(mime.includes('zip')?'zip':mime.includes('pdf')?'pdf':'xlsx');
+    const filename=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]||fallback;
+    download(await r.blob(),filename);
+    $('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';
+  }catch(e){$('rError').textContent=e.message;}
+  finally{btn.disabled=false;updateDownloadLabel();}
+};
 ['rMargin','rFx'].forEach(id=>$(id).oninput=invalidateReal);
-$('rFormat').onchange=()=>{invalidateReal();renderMasterStatus();};
-async function init(){updateDemo();document.querySelector('[data-mode="simple"]').click();switchRealMode('simple');renderMasterStatus();
+$('rFormat').onchange=()=>{invalidateReal();renderMasterStatus();updateDownloadLabel();};
+async function init(){updateDemo();document.querySelector('[data-mode="simple"]').click();switchRealMode('simple');renderMasterStatus();updateDownloadLabel();
 try{const status=await(await fetch('/api/status')).json();$('statustag').textContent=status.demo_ready?'Demo siap':'Preview';const cfg=await(await fetch('/api/auth-config')).json();access=cfg;onFileSelected();}catch(e){$('statustag').textContent='Offline';onFileSelected();}}
 init();
