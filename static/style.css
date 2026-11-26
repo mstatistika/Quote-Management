@@ -128,3 +128,9 @@ footer{color:#766D64;padding:22px 0}
  .demo-shell{padding:0 15px}
  .access-message{padding:12px}
 }
+
+/* Reliable native uploader: transparent real input covers the visible upload surface. */
+.upload-control{position:relative;display:flex;align-items:center;justify-content:center;min-height:54px;width:100%;margin:0;border-radius:8px;background:var(--ms-navy);color:var(--ms-paper);font-size:15px;font-weight:800;text-align:center;cursor:pointer;overflow:hidden}
+.upload-control:hover{background:var(--ms-navy-highlight)}
+.upload-control:focus-within{outline:3px solid var(--ms-khaki);outline-offset:3px}
+.upload-control .file-picker{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;clip-path:none;pointer-events:auto;cursor:pointer;z-index:2;display:block;border:0;padding:0}
