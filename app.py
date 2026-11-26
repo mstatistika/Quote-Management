@@ -238,7 +238,7 @@ async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=
     except Exception as e:safe_error(e)
     return Response(data,media_type=mime,headers={'Content-Disposition':f'attachment; filename="{name}"','X-Quotation-Status':'DRAFT-REVIEW-REQUIRED'})
 
-CR_SENDER='collectiverevivers@gmail.com'
+CR_SENDER='collective.reviver@gmail.com'
 
 def smtp_send(recipient,name,data,mime,password):
     msg=EmailMessage()
