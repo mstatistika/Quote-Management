@@ -92,8 +92,10 @@ async def whoami(user:dict=Depends(permitted)):
     return {'email':user['email'], 'authorized':True}
 
 def real_processing_ready():
-    # Explicit release gate: a temporary PIN must not enable supplier uploads.
-    return os.environ.get('ENABLE_REAL_QUOTATIONS','').strip().lower() in ('true','1','yes')
+    # A configured Supabase project and allowlist are required; both protected
+    # endpoints separately validate a current JWT and authorized email.
+    url,key,allow=auth_conf()
+    return bool(url and key and allow)
 
 @app.get('/api/auth-config')
 async def auth_config():
