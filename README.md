@@ -1,4 +1,4 @@
-# Quote Management — Daniel Quotation Portal v2.1
+# Quote Generator — v2.2.1
 
 Independent **FastAPI + vanilla HTML/CSS/JS** quotation portal, designed for Vercel. No Lovable dependency; does not use the General Booking project or its database.
 
