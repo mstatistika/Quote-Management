@@ -56,3 +56,5 @@ No customer-ready quotation should be sent before commercial QA. No automated ou
 - T01 master must be provided separately and rights to use its brand/template must be confirmed by the issuer.
 - Demo is **not** equivalent to successful authenticated end-to-end verification; real supplier XLSX output still requires live QA.
 - No built-in pricing/tax assumptions beyond explicitly entered margin and FX.
+
+<!-- Deployment sync: Quote Generator v2.3.2 production build trigger (2026-11-26). No application logic changes. -->
