@@ -5,11 +5,43 @@ const rf=(v)=>'Rp'+Math.round(v).toLocaleString('id-ID');
 const samples=[{sku:'DEMO-SKU-001',description:'Optical transponder sample',qty:2,cost:1000},{sku:'DEMO-SKU-002',description:'Pluggable module sample',qty:4,cost:250.5},{sku:'DEMO-SKU-003',description:'Chassis fan sample',qty:1,cost:85}];
 let demoState={total:0,valid:false};
 let access={configured:false,url:'',publishable_key:''};
-let token=null,realPreview=null,realMode='simple';
+let token=null,realPreview=null,realMode='simple',masterReady=null;
 const metaNames=[['customer','Customer'],['attention','Attention'],['email','Email customer'],['project','Project'],['quote_ref','Quotation reference'],['date','Date'],['delivery','Delivery address'],['billing','Billing address'],['shipping','Shipping terms'],['payment','Payment terms'],['lead_time','Lead time'],['validity','Validity'],['remarks','Remarks']];
 // One-page flow: choose a file first. Authentication is enforced by the server, never bypassed here.
 function syncDemoBadge() { $('demoBadge').hidden=Boolean(token); }
 syncDemoBadge();
+function renderMasterStatus(){
+  const info=$('rMasterStatus');
+  info.hidden=$('rFormat').value==='T02';
+  if(info.hidden)return;
+  if(masterReady===true){
+    info.textContent='Master CommVerge T01 sudah tersedia di server privat. Tidak perlu upload template lagi.';
+    info.classList.remove('error');
+  }else if(masterReady===false){
+    info.textContent='Master CommVerge T01 belum terpasang di server privat. Hubungi admin; Smartoptics (T02) tetap bisa digunakan.';
+    info.classList.add('error');
+  }else{
+    info.textContent='Memeriksa master CommVerge T01 di server privat…';
+    info.classList.remove('error');
+  }
+}
+async function checkPrivateMaster(){
+  masterReady=null;
+  renderMasterStatus();
+  if(!token)return;
+  try{
+    const r=await fetch('/api/master-status',{
+      headers:{Authorization:'Bearer '+token},
+      cache:'no-store'
+    });
+    if(!r.ok)throw Error('Master server belum dapat diverifikasi.');
+    const result=await r.json();
+    masterReady=Boolean(result.t01_ready);
+  }catch(e){
+    masterReady=false;
+  }
+  renderMasterStatus();
+}
 function onFileSelected(){
   invalidateReal();
   const selected=$('rFile').files[0];
@@ -76,6 +108,7 @@ $('rLoginBtn').onclick=async()=>{
     $('realLogin').classList.add('hidden');
     $('realWorkspace').classList.remove('hidden');
     syncDemoBadge();
+    checkPrivateMaster();
     $('realWorkspace').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
     $('rLoginError').textContent=e.message;
@@ -85,14 +118,16 @@ $('rLoginBtn').onclick=async()=>{
 };
 $('rLogout').onclick=()=>{
   token=null;
+  masterReady=null;
   $('rPassword').value='';
   syncDemoBadge();
   onFileSelected();
 };
 $('rPreview').onclick=async()=>{const btn=$('rPreview');btn.disabled=true;$('rError').textContent='';try{const r=await remoteApi('/api/preview',form());const p=await r.json();realPreview=p;$('rUsd').textContent=sf(p.total_usd);$('rIdr').textContent=rf(p.total_idr);$('rResultInfo').textContent=`${p.item_count} item · margin aktual ${p.actual_gm}% · validasi PASS`;$('rItems').replaceChildren(...p.items.map(i=>itemElement({sku:i.sku,description:i.description,qty:i.qty,unit:i.unit_usd,total:i.total_usd})));$('rResults').hidden=false;$('rAck').checked=false;$('rGenerate').disabled=true;}catch(e){invalidateReal();$('rError').textContent=e.message;}finally{btn.disabled=false;}};
 $('rAck').onchange=()=>{$('rGenerate').disabled=!$('rAck').checked||!realPreview;};
-$('rGenerate').onclick=async()=>{const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';try{if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');const fd=form();fd.append('format',$('rFormat').value);if($('rT01').files[0])fd.append('t01_master',$('rT01').files[0]);const meta={};if(realMode==='advanced')for(const [key] of metaNames){const v=$('meta_'+key).value.trim();if(v)meta[key]=v;}fd.append('details',JSON.stringify(meta));const r=await remoteApi('/api/generate',fd);const mime=r.headers.get('Content-Type')||'';const filename=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]||'QUOTE_DRAFT.'+(mime.includes('zip')?'zip':'xlsx');download(await r.blob(),filename);$('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';}catch(e){$('rError').textContent=e.message;}finally{btn.disabled=false;}};
-$('rT01').onchange=invalidateReal;['rMargin','rFx','rFormat'].forEach(id=>$(id).oninput=invalidateReal);
-async function init(){updateDemo();document.querySelector('[data-mode="simple"]').click();switchRealMode('simple');
+$('rGenerate').onclick=async()=>{const btn=$('rGenerate');btn.disabled=true;$('rError').textContent='';try{if(!realPreview||!$('rAck').checked)throw Error('Preview dan review harus dilakukan terlebih dahulu.');const fd=form();fd.append('format',$('rFormat').value);const meta={};if(realMode==='advanced')for(const [key] of metaNames){const v=$('meta_'+key).value.trim();if(v)meta[key]=v;}fd.append('details',JSON.stringify(meta));const r=await remoteApi('/api/generate',fd);const mime=r.headers.get('Content-Type')||'';const filename=(r.headers.get('Content-Disposition')||'').match(/filename="([^"]+)"/)?.[1]||'QUOTE_DRAFT.'+(mime.includes('zip')?'zip':'xlsx');download(await r.blob(),filename);$('rError').textContent='Download DRAFT berhasil. Review manual sebelum dikirim ke customer.';}catch(e){$('rError').textContent=e.message;}finally{btn.disabled=false;}};
+['rMargin','rFx'].forEach(id=>$(id).oninput=invalidateReal);
+$('rFormat').onchange=()=>{invalidateReal();renderMasterStatus();};
+async function init(){updateDemo();document.querySelector('[data-mode="simple"]').click();switchRealMode('simple');renderMasterStatus();
 try{const status=await(await fetch('/api/status')).json();$('statustag').textContent=status.demo_ready?'Demo siap':'Preview';const cfg=await(await fetch('/api/auth-config')).json();access=cfg;onFileSelected();}catch(e){$('statustag').textContent='Offline';onFileSelected();}}
 init();
