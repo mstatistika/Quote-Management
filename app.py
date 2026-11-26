@@ -195,9 +195,13 @@ async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=
     try:
         master=None
         if format in ('T01','BOTH'):
-            master=await private_t01_master(user['access_token'])
-            if master is None:
-                raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
+            inspected=source(raw,margin,fx)
+            if inspected['source_type']=='commverge_prepriced':
+                master=raw  # The supplier's quote has already been priced and branded.
+            else:
+                master=await private_t01_master(user['access_token'])
+                if master is None:
+                    raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
         if file_type=='xlsx':
             name,data,mime=generate(raw,format,margin,fx,details,master)
         elif file_type=='pdf':
@@ -216,9 +220,13 @@ async def pdf_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Fo
         pdf_format='T01' if format=='BOTH' else format
         master=None
         if pdf_format=='T01':
-            master=await private_t01_master(user['access_token'])
-            if master is None:
-                raise QuoteError('Master CommVerge T01 belum terpasang di penyimpanan privat.')
+            inspected=source(raw,margin,fx)
+            if inspected['source_type']=='commverge_prepriced':
+                master=raw
+            else:
+                master=await private_t01_master(user['access_token'])
+                if master is None:
+                    raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
         _,data,mime=generate_pdf(raw,pdf_format,margin,fx,details,master)
     except Exception as e:safe_error(e)
     return Response(data,media_type='application/pdf',headers={
