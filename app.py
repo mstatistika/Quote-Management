@@ -1,4 +1,4 @@
-"""Daniel Quotation Portal — Vercel FastAPI entrypoint, quote engine v2 portable.
+"""Quote Generator — Vercel FastAPI entrypoint, quote engine v2 portable.
 Demo is public synthetic data. Real supplier XLSX is AUTH-GATED, never persisted.
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ from quote_engine import (QuoteError, preview, generate, settings, metadata, sou
 ROOT=Path(__file__).resolve().parent
 T01_PRIVATE_BUCKET='qms-templates'
 T01_PRIVATE_PATH='T01_MASTER_CLEAN.xlsx'
-app=FastAPI(title='Daniel Quotation Portal',docs_url=None,redoc_url=None,openapi_url=None)
+app=FastAPI(title='Quote Generator',docs_url=None,redoc_url=None,openapi_url=None)
 
 @app.middleware('http')
 async def headers(req,handler):
