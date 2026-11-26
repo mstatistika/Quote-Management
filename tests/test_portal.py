@@ -14,7 +14,10 @@ class PortalTests(unittest.TestCase):
  def test_status(self):
   r=self.c.get('/api/status');self.assertEqual(r.status_code,200);self.assertTrue(r.json()['demo_ready']);self.assertEqual(r.json()['t01_master_ready'],T01 is not None)
  def test_home(self):
-  r=self.c.get('/');self.assertEqual(r.status_code,200);self.assertIn('Buat Quotation',r.text)
+  r=self.c.get('/');self.assertEqual(r.status_code,200)
+  self.assertIn('<select id="rEmail"',r.text)
+  self.assertIn('id="rPassword"',r.text)
+  self.assertNotIn('rPinSetup',r.text)
  def test_real_requires_auth(self):
   r=self.c.post('/api/preview',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
   r=self.c.post('/api/generate',files={'quote':('supplier.xlsx',SRC1)},data={'margin':'15','fx':'18300'});self.assertIn(r.status_code,(401,503))
