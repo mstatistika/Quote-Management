@@ -16,8 +16,10 @@
 </header>
 <main class="qms-main">
 <section id="real" class="card upload-card" aria-label="Upload quotation Excel">
-  <button type="button" id="uploadAction" class="cta upload-primary">↑ Upload Excel</button>
-  <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX">
+  <label id="uploadAction" class="upload-primary upload-control">
+    <span>↑ Upload Excel</span>
+    <input id="rFile" type="file" accept=".xlsx" class="file-picker" aria-label="Pilih quotation supplier format XLSX">
+  </label>
   <p class="upload-caption">Pilih quotation supplier (.xlsx)</p>
   <p id="selectedFileInfo" class="file-selection" aria-live="polite" hidden></p>
   <div id="realUnconfigured" class="access-message hidden" role="status">
