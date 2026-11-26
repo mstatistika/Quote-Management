@@ -86,7 +86,7 @@ def today():return dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().is
 @app.get('/api/status')
 async def status():
     url,key,allow=auth_conf()
-    return {'version':'2.3.0','state':'PREVIEW','output_format_independent':True,'bidirectional_generation_enabled':True,'excel_comparison_enabled':True,'visual_document_preview_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
+    return {'version':'2.3.1','state':'PREVIEW','output_format_independent':True,'bidirectional_generation_enabled':True,'excel_comparison_enabled':True,'visual_document_preview_enabled':True,'demo_ready':True,'real_auth_configured':bool(url),
             'commverge_prepriced_supported':True,
             't01_master_ready':None,'t01_master_location':'private_supabase_storage',
             't02_uses_original_source':True,'real_processing_enabled':bool(url and real_processing_ready()),'today':today()}
@@ -168,7 +168,7 @@ async def demo_export(margin:float=15,fx:int=18300,format:str='T01',customer:str
         setval(s,'E15',('ROUND(SUM(E11:E13),2)',total),'formula')
         setval(s,'A18',customer);setval(s,'C18',project)
         return pack(z,s)
-    files=[(f'{code}-DEMO-SAMPLE.xlsx',make_sample(code)) for code in (['T01','T02'] if format=='BOTH' else [format])]
+    files=[(f'{"CommVerge" if code=="T01" else "Smartoptics"}-DEMO-SAMPLE.xlsx',make_sample(code)) for code in (['T01','T02'] if format=='BOTH' else [format])]
     if len(files)==1:name,data=files[0];mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     else:
         mem=io.BytesIO()
@@ -201,7 +201,7 @@ async def real_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=F
             else:
                 master=await private_t01_master(user['access_token'])
                 if master is None:
-                    raise QuoteError('Master output CommVerge T01 belum tersedia di storage privat. Pilih T02 atau minta admin memasang master T01.')
+                    raise QuoteError('Template CommVerge belum tersedia di penyimpanan privat. Pilih Smartoptics atau hubungi admin.')
         result['format_resolved']=format
         result['format_auto_selected']=False
         result['format_notice']=('Input CommVerge sudah berharga jual: harga dipertahankan tanpa margin tambahan.' if result['source_type']=='commverge_prepriced' else '')
@@ -222,7 +222,7 @@ async def real_generate(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=
             else:
                 master=await private_t01_master(user['access_token'])
                 if master is None:
-                    raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
+                    raise QuoteError('Template CommVerge belum tersedia di penyimpanan privat.')
         if file_type=='xlsx':
             name,data,mime=generate(raw,format,margin,fx,details,master)
         elif file_type=='pdf':
@@ -247,7 +247,7 @@ async def pdf_preview(quote:UploadFile=File(...),margin:str=Form('15'),fx:str=Fo
             else:
                 master=await private_t01_master(user['access_token'])
                 if master is None:
-                    raise QuoteError('Master CommVerge T01 belum dipasang di penyimpanan privat.')
+                    raise QuoteError('Template CommVerge belum tersedia di penyimpanan privat.')
         _,data,mime=generate_pdf(raw,pdf_format,margin,fx,details,master)
     except Exception as e:safe_error(e)
     return Response(data,media_type='application/pdf',headers={
