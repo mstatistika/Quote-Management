@@ -54,7 +54,7 @@ def pdf_for_one(q,code,meta,date,master_bytes):
  frame=Frame(ml,bottom,page_width-ml-mr,page_height-top-bottom,
              leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0,id='body')
  doc=BaseDocTemplate(buf,pagesize=A4,pageTemplates=[PageTemplate(id='qt',frames=[frame],onPage=decorate)],
-                     title=f'Quote {code} DRAFT',author='Quote Generator')
+                     title=f'Quote {"CommVerge" if code=="T01" else "Smartoptics"} DRAFT',author='Quote Generator')
  story=[]
  if code=='T01' and master_bytes:
   try:
@@ -155,9 +155,9 @@ def generate_pdf(raw,format_id='T01',margin=15,fx=18300,details='',master_bytes=
  for code in codes:
   pdf=pdf_for_one(q,code,meta,date,master_bytes if code=='T01' else None)
   if not pdf.startswith(b'%PDF-'):raise QuoteError('PDF output tidak valid.')
-  exports.append((f'DANIEL_QUOTE_{code}_{date.isoformat()}_DRAFT.pdf',pdf))
+  exports.append((f'DANIEL_QUOTE_{"CommVerge" if code=="T01" else "Smartoptics"}_{date.isoformat()}_DRAFT.pdf',pdf))
  if len(exports)==1:return exports[0][0],exports[0][1],'application/pdf'
  out=io.BytesIO()
  with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
   for name,pdf in exports:z.writestr(name,pdf)
- return f'DANIEL_QUOTE_BOTH_{date.isoformat()}_PDF_DRAFT.zip',out.getvalue(),'application/zip'
+ return f'DANIEL_QUOTE_Keduanya_{date.isoformat()}_PDF_DRAFT.zip',out.getvalue(),'application/zip'
