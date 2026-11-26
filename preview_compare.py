@@ -6,6 +6,8 @@ Expected price adjustments are distinguished from unexpected item/quantity chang
 from __future__ import annotations
 import io
 import zipfile
+import base64
+import datetime as dt
 from decimal import Decimal, InvalidOperation
 
 from quote_engine import QuoteError, SLOTS, generate, source, workbook, sheet_and_shared, value
@@ -22,6 +24,98 @@ def _sheet_data(raw):
     zipped = workbook(raw)
     sheet, strings = sheet_and_shared(zipped)
     return sheet, strings
+
+
+
+def _logo(z, is_commverge):
+    """Return only a bounded raster logo from an already-authorized XLSX."""
+    if not is_commverge:
+        return None
+    for filename in ("xl/media/image.jpg", "xl/media/image.jpeg", "xl/media/image1.png", "xl/media/image.png"):
+        if filename not in z.namelist():
+            continue
+        item = z.getinfo(filename)
+        if item.file_size > 180_000:
+            continue
+        data = z.read(filename)
+        if data[:3] == b"\\xff\\xd8\\xff":
+            mime = "image/jpeg"
+        elif data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            mime = "image/png"
+        else:
+            continue
+        return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+    return None
+
+
+def _date_value(value_text):
+    value_text = str(value_text or "").strip()
+    if not value_text:
+        return "Belum diisi"
+    try:
+        number = float(value_text)
+        if 30000 <= number <= 85000:
+            return (dt.date(1899, 12, 30) + dt.timedelta(days=int(number))).isoformat()
+    except (ValueError, OverflowError):
+        pass
+    return value_text[:42]
+
+
+def _document_snapshot(raw, code, rows, original=False):
+    """Visual single-page excerpt based on cells in the *actual* workbook."""
+    zipped = workbook(raw)
+    sheet, shared = sheet_and_shared(zipped)
+    def get(addr):
+        return value(sheet, shared, addr).strip()
+    t01 = code == "T01"
+    if t01:
+        meta = {
+            "company": get("D6") or "CommVerge Solutions",
+            "customer": get("C10"),
+            "attention": get("C11"),
+            "project": get("F12"),
+            "reference": get("P10") or get("G11"),
+            "date": _date_value(get("I10")),
+            "delivery": get("D67") or get("C13"),
+            "payment": get("D68"),
+            "validity": get("D70"),
+            "remarks": get("B64"),
+        }
+    else:
+        meta = {
+            "company": "Smartoptics",
+            "customer": get("E9"),
+            "attention": get("E8"),
+            "project": get("E11"),
+            "reference": get("L14"),
+            "date": _date_value(get("E92")),
+            "delivery": get("E93"),
+            "payment": get("E94"),
+            "validity": get("E95"),
+            "remarks": get("E97"),
+        }
+    count = len(rows)
+    if count <= 7:
+        excerpt = rows
+        omitted = 0
+    else:
+        excerpt = rows[:4] + rows[-2:]
+        omitted = count - 6
+    # The source grand total may be an Excel error; never replace it silently.
+    subtotal_addr = "H45" if t01 else "M89"
+    original_total = get(subtotal_addr)
+    return {
+        "template": code,
+        "meta": meta,
+        "logo": _logo(zipped, t01),
+        "item_count": count,
+        "omitted": omitted,
+        "first_count": min(count, 4) if omitted else count,
+        "items": [{k: r.get(k, "") for k in ("row", "sku", "description", "qty", "unit", "total", "status")} for r in excerpt],
+        "total": original_total,
+        "original": original,
+        "preview_only": True,
+    }
 
 
 def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="", master=None):
@@ -97,7 +191,12 @@ def compare_workbooks(raw, target_format="T01", margin=15, fx=18300, details="",
 
     source_total_address = "H45" if prepriced else "M89"
     draft_total_address = "H45" if viewed_format == "T01" else "M89"
+    source_code = "T01" if prepriced else "T02"
+    source_doc = _document_snapshot(raw, source_code, src_rows, original=True)
+    draft_doc = _document_snapshot(output, viewed_format, target_rows)
     return {
+        "source_document": source_doc,
+        "draft_document": draft_doc,
         "source_type": q["source_type"],
         "source_label": "COMMVERGE T01 · FILE DIUPLOAD" if prepriced else "SMARTOPTICS · FILE SUPPLIER DIUPLOAD",
         "draft_label": f"{'COMMVERGE' if viewed_format == 'T01' else 'SMARTOPTICS'} {viewed_format} · DRAFT GENERATOR",
