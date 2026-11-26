@@ -226,10 +226,38 @@ def pack(z,sheet):
 def date_serial(date):return (date-dt.date(1899,12,30)).days
 
 def output_t02(q,date,meta):
-    z=q['original_zip'];s,ss=sheet_and_shared(z)
-    active={i['row'] for i in q['items']}
-    for i in q['items']:
-        r=i['row'];setval(s,f'F{r}',amount(i['listcost']/(1-q['margin']/100)),'number')
+    from_commverge=q['source_type']=='commverge_prepriced'
+    if from_commverge:
+        # A CommVerge workbook has no Smartoptics layout. Use the sanitized,
+        # PUBLIC synthetic T02 worksheet layout, never an unrelated customer file.
+        # It carries no real customer/pricing data and is clearly marked DRAFT.
+        template=Path(__file__).resolve().parent/'tests/fixtures/SMARTOPTICS_SYNTHETIC_SOURCE.xlsx'
+        if not template.is_file():raise QuoteError('Layout Smartoptics T02 belum terpasang.')
+        z=workbook(template.read_bytes())
+    else:
+        z=q['original_zip']
+    s,ss=sheet_and_shared(z)
+    if value(s,ss,'D16').strip().lower()!='part #' or 'Smartoptics' not in value(s,ss,'L5'):
+        raise QuoteError('Template output Smartoptics T02 tidak valid.')
+    if from_commverge:
+        if len(q['items'])>71:raise QuoteError('Template Smartoptics hanya mendukung 71 baris item.')
+        # Remove every synthetic/sample item and price before copying the source.
+        for r in range(18,89):
+            for col in 'DEFGHIJKLM':clear(s,f'{col}{r}')
+        for addr in ('E8','E9','E10','E11','L14','E93','E94','E95','E97'):
+            clear(s,addr)
+    active=set()
+    for index,i in enumerate(q['items']):
+        r=18+index if from_commverge else i['row']
+        active.add(r)
+        if from_commverge:
+            setval(s,f'D{r}',i['sku'])
+            setval(s,f'E{r}',i['description'])
+            setval(s,f'L{r}',i['qty'],'number')
+            # Original vendor list price/cost cannot be recovered from a selling-price quote.
+            clear(s,f'F{r}')
+        else:
+            setval(s,f'F{r}',amount(i['listcost']/(1-q['margin']/100)),'number')
         setval(s,f'G{r}',i['sell'],'number')
         setval(s,f'M{r}',(f'ROUND(G{r}*L{r},2)',i['total']),'formula')
     for r in range(18,89):
@@ -241,7 +269,15 @@ def output_t02(q,date,meta):
     ref_idr=int((q['revenue']*q['fx']).quantize(Decimal('1'),rounding=ROUND_HALF_UP))
     setval(s,'M90',('ROUND(M89*$E$90,0)',ref_idr),'formula')
     setval(s,'E92',date_serial(date),'number')
-    setval(s,'E12','DRAFT – REPRICED COPY FOR REVIEW; NOT SUPPLIER-ISSUED')
+    if from_commverge:
+        setval(s,'E12','DRAFT – FORMATTED FROM COMMVERGE SELLING PRICES; NO ORIGINAL SMARTOPTICS COST DATA; NOT SUPPLIER-ISSUED')
+        setval(s,'E8',meta.get('attention') or 'TBC')
+        setval(s,'E9',meta.get('customer') or 'CUSTOMER NAME - TBC')
+        setval(s,'E10',meta.get('email') or 'TBC')
+        setval(s,'E11',meta.get('project') or q.get('quote_name') or 'Quotation draft')
+        setval(s,'L14',meta.get('quote_ref') or q.get('quote_ref') or 'DRAFT')
+    else:
+        setval(s,'E12','DRAFT – REPRICED COPY FOR REVIEW; NOT SUPPLIER-ISSUED')
     mapping={'customer':'E9','attention':'E8','email':'E10','project':'E11','quote_ref':'L14','shipping':'E93','payment':'E94','validity':'E95','remarks':'E97'}
     for field,addr in mapping.items():
         if meta.get(field):setval(s,addr,meta[field])
@@ -300,11 +336,21 @@ def qa_export(raw,q,format_id):
     if format_id=='T02':
         if decimal(value(s,ss,'M89'))!=q['revenue']:raise QuoteError('T02 subtotal mismatch.')
         if decimal(value(s,ss,'E90'))!=q['fx']:raise QuoteError('T02 kurs mismatch.')
-        for i in q['items']:
-            if decimal(value(s,ss,f'G{i["row"]}'))!=i['sell']:raise QuoteError('T02 harga per item mismatch.')
+        converted=q['source_type']=='commverge_prepriced'
+        active={18+idx if converted else i['row'] for idx,i in enumerate(q['items'])}
+        for idx,i in enumerate(q['items']):
+            r=18+idx if converted else i['row']
+            if value(s,ss,f'D{r}')!=i['sku'] or value(s,ss,f'E{r}')!=i['description']:
+                raise QuoteError('T02 SKU/deskripsi mismatch.')
+            if decimal(value(s,ss,f'L{r}'))!=Decimal(i['qty']):
+                raise QuoteError('T02 QTY mismatch.')
+            if decimal(value(s,ss,f'G{r}'))!=i['sell'] or decimal(value(s,ss,f'M{r}'))!=i['total']:
+                raise QuoteError('T02 harga/subtotal mismatch.')
+            if converted and value(s,ss,f'F{r}'):
+                raise QuoteError('T02 supplier list cost tidak boleh dikarang.')
         for r in range(18,89):
-            if r not in {i['row'] for i in q['items']} and any(value(s,ss,f'{col}{r}') for col in 'FGM'):
-                raise QuoteError('Harga supplier tersisa pada baris tidak aktif.')
+            if r not in active and any(value(s,ss,f'{col}{r}') for col in ('D','F','G','M')):
+                raise QuoteError('Data lama tersisa pada baris output T02.')
     else:
         if decimal(value(s,ss,'H45'))!=q['revenue']:raise QuoteError('T01 subtotal mismatch.')
         if decimal(value(s,ss,'P19'))!=q['fx']:raise QuoteError('T01 kurs mismatch.')
@@ -321,8 +367,9 @@ def generate(raw,format_id='T01',margin=15,fx=18300,details='',master_bytes=None
     if format_id not in ('T01','T02','BOTH'):raise QuoteError('Format tidak valid.')
     meta=metadata(details);q=source(raw,margin,fx)
     if q['source_type']=='commverge_prepriced':
-        if format_id!='T01':raise QuoteError('Quotation CommVerge yang sudah berharga jual hanya mendukung format T01; untuk T02 gunakan supplier Smartoptics asli.')
-        if master_bytes is None:master_bytes=raw
+        # Format selection is independent from the file uploaded. Cross-format
+        # conversion preserves existing selling prices (no second margin).
+        if master_bytes is None and format_id in ('T01','BOTH'):master_bytes=raw
         meta={**{key:q.get(key) for key in ('customer','attention','delivery','billing','email') if q.get(key)},**meta}
     date=dt.date.fromisoformat(meta.get('date') or dt.datetime.now(dt.timezone(dt.timedelta(hours=7))).date().isoformat())
     out=[]
