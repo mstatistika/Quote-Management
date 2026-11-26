@@ -11,7 +11,7 @@
   <div class="brand-group">
     <h1 class="brand-title"><a class="brand" href="/" aria-label="Quote Generator">Quote Generator</a></h1>
   </div>
-  <div class="top-right"><span id="demoBadge" class="demo-pill">DEMO</span><img class="cr-logo" src="/static/cr-mark-logo.png" alt="Logo Collective Revivers" width="46" height="46" loading="eager"></div>
+  <div class="top-right"><img class="cr-logo" src="/static/cr-mark-logo.png" alt="Logo Collective Revivers" width="46" height="46" loading="eager"></div>
   <span id="statustag" class="sr-only" role="status">Preview</span>
 </header>
 <main class="qms-main">
@@ -61,36 +61,36 @@
     <button id="rPreview" type="button" class="cta">Preview Hasil Quotation</button>
     <p id="rError" class="hint" role="alert"></p>
     <div id="rResults" hidden>
-      <div class="totalbox"><span>Total DRAFT <small>sebelum pajak</small></span><strong id="rUsd">—</strong><b id="rIdr">—</b></div>
-      <p id="rResultInfo" class="successnote"></p>
-      <p id="rPricingNote" class="minor" role="status" aria-live="polite" hidden></p>
-      <section class="worksheet-preview" aria-label="Preview quotation">
-        <div class="row between worksheet-heading">
-          <h3 class="subheading">Preview hasil quotation</h3>
-          <div class="switches" role="group" aria-label="Jenis preview">
-            <button id="rShowExcel" type="button" class="switch active" aria-pressed="true">Excel</button>
-            <button id="rShowPdf" type="button" class="switch" aria-pressed="false">PDF</button>
-          </div>
-        </div>
-        <section id="rExcelPreview" aria-label="Cuplikan visual quotation hasil generator">
-          <p class="visual-intro">Cuplikan quotation <strong>hasil generator</strong>: logo, header, beberapa item, total, dan terms. Seluruh item tetap diperiksa melalui validasi di bawah.</p>
-          <div class="visual-doc-stack">
-            <article class="visual-document-card" aria-label="Quotation Excel draft generator">
-              <div class="visual-doc-label"><h4 id="rDraftTitle">Hasil Quote Generator</h4><span class="visual-doc-kind">DRAFT</span></div>
-              <div id="rDraftDocument" class="quote-paper" aria-label="Cuplikan dokumen draft Excel"></div>
-            </article>
-          </div>
-          <section class="visual-qa" aria-label="Hasil validasi quotation">
-            <h4>Hasil pemeriksaan</h4>
+      <section class="worksheet-preview" aria-label="Review quotation">
+        <div class="review-grid">
+          <section class="visual-qa" aria-label="Hasil pemeriksaan quotation">
+            <h3>Hasil pemeriksaan</h3>
             <ol id="rCompareChecks" class="qa-numbered" aria-live="polite"></ol>
-            <p id="rCompareNote" class="worksheet-note"></p>
           </section>
-        </section>
-        <section id="rPdfPreview" class="pdf-preview" aria-label="Preview quotation PDF A4" hidden>
-          <div class="row between"><h3 class="subheading">Preview PDF · A4</h3><button type="button" id="rRefreshPdf" class="small-link">Refresh</button></div>
-          <p id="rPreviewMessage" class="minor" role="status" aria-live="polite">Preview PDF akan muncul setelah dipilih.</p>
-          <iframe id="rPdfFrame" title="Preview PDF quotation A4" class="pdf-preview-frame" hidden></iframe>
-        </section>
+          <section class="review-preview" aria-label="Preview hasil quotation">
+            <div class="row between worksheet-heading">
+              <h3 class="subheading">Preview</h3>
+              <div class="switches" role="group" aria-label="Jenis preview">
+                <button id="rShowExcel" type="button" class="switch active" aria-pressed="true">Excel</button>
+                <button id="rShowPdf" type="button" class="switch" aria-pressed="false">PDF</button>
+              </div>
+            </div>
+            <section id="rExcelPreview" aria-label="Preview Excel hasil generator">
+              <div class="visual-document-card">
+                <h4 id="rDraftTitle" class="sr-only">Quotation hasil generator</h4>
+                <div id="rDraftDocument" class="quote-paper" aria-label="Hasil quotation Excel"></div>
+              </div>
+            </section>
+            <section id="rPdfPreview" class="pdf-preview" aria-label="Preview PDF A4" hidden>
+              <div class="row between pdf-actions">
+                <span class="minor">PDF · A4</span>
+                <button type="button" id="rRefreshPdf" class="small-link">Refresh</button>
+              </div>
+              <p id="rPreviewMessage" class="minor" role="status" aria-live="polite"></p>
+              <iframe id="rPdfFrame" title="Preview PDF quotation A4" class="pdf-preview-frame" hidden></iframe>
+            </section>
+          </section>
+        </div>
       </section>
       <label class="full">Download sebagai
         <select id="rExportType" aria-label="Pilih tipe file download">
@@ -98,28 +98,13 @@
           <option value="pdf">PDF (.pdf, A4)</option>
         </select>
       </label>
+      <div class="totalbox draft-total"><span>Total DRAFT <small>sebelum pajak</small></span><strong id="rUsd">—</strong><b id="rIdr">—</b></div>
       <label class="ack"><input id="rAck" type="checkbox"> Saya sudah memeriksa item, harga dan terms.</label>
       <button id="rGenerate" class="cta" type="button" disabled>↓ Download Excel DRAFT</button>
     </div>
     <p class="disclaimer">DRAFT memerlukan review sebelum dikirim ke customer. Tidak ada email otomatis.</p>
   </div>
 </section>
-<section class="demo-shell" id="demoPanel">
-  <h2 class="demo-heading">Coba demo tanpa file</h2>
-  <section id="demo" aria-label="Demo quotation">
-     <div class="fields-two price-fields">
-  <label>Margin (%)<input id="dMargin" type="number" min=".01" max="80" step=".01" value="15" inputmode="decimal"></label>
-  <label>Kurs USD/IDR<input id="dFx" type="number" min="1000" max="1000000" step="1" value="18300" inputmode="numeric"></label>
- </div>
- <div class="totalbox"><span>Total penawaran <small>sebelum pajak</small></span><strong id="dUsd">USD 0.00</strong><b id="dIdr">Rp0</b></div>
- <label class="full">Format Excel<select id="dFormat"><option value="T01">CommVerge — contoh</option><option value="T02">Smartoptics — contoh</option><option value="BOTH">Keduanya</option></select></label>
- <button id="dDownload" class="cta" type="button">↓ Download Excel Contoh</button><p id="dError" class="hint" role="status" aria-live="polite"></p>
- <div class="smalltools"><button id="dReset" type="button" class="small-link">↺ Reset</button><div class="switches"><button type="button" data-mode="simple" class="switch active">Simple</button><button type="button" data-mode="advanced" class="switch">Advanced</button></div></div>
- <section id="dAdvanced" class="fold advanced-fields"><h3 class="subheading">Customer dan proyek</h3><div class="fields-two"><label>Customer<input id="dCustomer" maxlength="90" value="DEMO Customer"></label><label>Proyek<input id="dProject" maxlength="90" value="Synthetic Sample"></label></div><p class="minor">Hanya dicantumkan di file contoh.</p></section>
- <section class="fold" id="dDetails"><h3 class="subheading">3 item dan pemeriksaan</h3><div id="dItems" class="item-list"></div><div class="qa"><span class="check">✓</span> <span id="dQa">5/5 pemeriksaan lulus</span></div></section>
- <div class="hidden" aria-hidden="true"><span id="dGm">15%</span><span id="dRate">Rp18.300</span></div>
-  </section>
-</section>
 </main>
-<footer>Quote Generator · Collective Revivers · v2.3.1</footer>
+<footer>Quote Generator · Collective Revivers · v2.3.2</footer>
 </div></body></html>
