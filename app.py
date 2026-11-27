@@ -44,6 +44,8 @@ def auth_conf():
     url=os.environ.get('SUPABASE_URL','').strip().rstrip('/')
     key=os.environ.get('SUPABASE_PUBLISHABLE_KEY','').strip()
     allow={x.strip().lower() for x in os.environ.get('ALLOWED_EMAILS','').split(',') if x.strip()}
+    # Dedicated Daniel workspace: restrict the configured allowlist server-side.
+    allow.intersection_update({"daniel.christianto85@gmail.com"})
     try:
         p=urlparse(url)
         if p.scheme!='https' or not p.netloc or p.path not in ('','/'):return None,None,set()
@@ -246,7 +248,6 @@ def smtp_send(recipient,name,data,mime,password):
     msg['To']=recipient
     msg['Subject']='Quotation DRAFT'
     user_name = {
-        "michael.statistika@gmail.com": "Michael",
         "daniel.christianto85@gmail.com": "Daniel",
     }.get(recipient.strip().lower(), 'User')
     msg.set_content(

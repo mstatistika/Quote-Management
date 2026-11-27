@@ -61,7 +61,7 @@ function showLogin(message=''){
   $('real').classList.add('hidden');
   $('rFile').value='';
   $('rPassword').value='';
-  $('rEmail').value='';
+  $('rEmail').selectedIndex=0;
   for(const [key] of metaNames)$('meta_'+key).value='';
   $('rMargin').value='15';
   $('rFx').value='18300';
