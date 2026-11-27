@@ -245,7 +245,15 @@ def smtp_send(recipient,name,data,mime,password):
     msg['From']=f'Collective Revivers <{CR_SENDER}>'
     msg['To']=recipient
     msg['Subject']='Quotation DRAFT'
-    msg.set_content('Terlampir quotation DRAFT untuk review internal. Mohon periksa sebelum dikirim kepada customer.')
+    user_name = {
+        "michael.statistika@gmail.com": "Michael",
+        "daniel.christianto85@gmail.com": "Daniel",
+    }.get(recipient.strip().lower(), 'User')
+    msg.set_content(
+        f'Hi, {user_name}. Berikut terlampir quotation DRAFT untuk review internal.\n'
+        'Mohon periksa dulu sebelum dikirim kepada customer.\n\n'
+        'Terima kasih'
+    )
     main,sub=mime.split('/',1)
     msg.add_attachment(data,maintype=main,subtype=sub,filename=name)
     with smtplib.SMTP_SSL('smtp.gmail.com',465,timeout=15,context=ssl.create_default_context()) as smtp:
